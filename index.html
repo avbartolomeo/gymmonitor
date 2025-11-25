@@ -1,0 +1,1878 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Entrenamiento</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+
+        .date-display {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .phase-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 10px;
+        }
+
+        .phase-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .phase-select {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn-add-phase {
+            padding: 8px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            transform: scale(1.05);
+        }
+
+        .content-section {
+            display: none;
+        }
+
+        .content-section.active {
+            display: block;
+        }
+
+        .day-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .day-btn {
+            min-width: 70px;
+            padding: 10px 15px;
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .day-btn.active {
+            background: white;
+            color: #667eea;
+        }
+
+        .exercise-card {
+            background: white;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .exercise-card.completed {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+        }
+
+        .exercise-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .exercise-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .type-fuerza { background: #667eea; color: white; }
+        .type-cardio { background: #f093fb; color: white; }
+        .type-core { background: #ffa500; color: white; }
+        .type-reflejos { background: #4facfe; color: white; }
+
+        .exercise-name {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin: 8px 0;
+        }
+
+        .exercise-details {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .btn-complete {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-complete:active {
+            transform: scale(0.95);
+        }
+
+        .btn-complete.completed {
+            background: #52c41a;
+        }
+
+        .nutrition-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .nutrition-header {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .macro-input {
+            margin-bottom: 15px;
+        }
+
+        .macro-input label {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .macro-input input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .macro-summary {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .macro-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .macro-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .macro-label {
+            font-size: 12px;
+            opacity: 0.9;
+            text-transform: uppercase;
+        }
+
+        .progress-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .progress-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        .history-date {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .history-stats {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .empty-state-text {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .btn-save {
+            width: 100%;
+            padding: 15px;
+            background: #52c41a;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 15px;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 5px 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .nav-item.active {
+            color: #667eea;
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+
+        .nav-label {
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .exercise-card, .nutrition-card, .progress-section {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-size: 14px;
+            z-index: 1000;
+            display: none;
+        }
+
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            font-size: 22px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .phase-list {
+            margin-bottom: 20px;
+        }
+
+        .phase-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .phase-item.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .phase-name {
+            font-weight: 600;
+        }
+
+        .btn-delete-phase {
+            padding: 6px 12px;
+            background: #ff4d4f;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .add-phase-form {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Timer Styles */
+        .timer-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timer-modal.show {
+            display: flex;
+        }
+
+        .timer-content {
+            background: white;
+            border-radius: 30px;
+            padding: 40px;
+            text-align: center;
+            max-width: 350px;
+            width: 90%;
+        }
+
+        .timer-display {
+            font-size: 72px;
+            font-weight: 700;
+            color: #667eea;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .timer-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-timer {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-timer-start {
+            background: #52c41a;
+            color: white;
+        }
+
+        .btn-timer-pause {
+            background: #faad14;
+            color: white;
+        }
+
+        .btn-timer-reset {
+            background: #ff4d4f;
+            color: white;
+        }
+
+        .preset-times {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-preset {
+            padding: 10px;
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-preset:active {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-start-timer {
+            padding: 8px 15px;
+            background: #52c41a;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        /* Charts */
+        .chart-container {
+            position: relative;
+            height: 250px;
+            margin: 20px 0;
+        }
+
+        /* Goals */
+        .goals-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .goal-item {
+            margin-bottom: 20px;
+        }
+
+        .goal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .goal-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .goal-progress-text {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .goal-input-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .goal-input-group input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .btn-small {
+            padding: 10px 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* Export/Import */
+        .backup-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-backup {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-export {
+            background: #52c41a;
+            color: white;
+        }
+
+        .btn-import {
+            background: #1890ff;
+            color: white;
+        }
+
+        #importFile {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>💪 Mi Entrenamiento</h1>
+        <div class="date-display" id="currentDate"></div>
+        <div class="phase-selector">
+            <span class="phase-label">Fase:</span>
+            <select class="phase-select" id="phaseSelect" onchange="changePhase()">
+                <option value="1">Fase 1 - Adaptación</option>
+            </select>
+            <button class="btn-add-phase" onclick="showPhaseManager()">⚙️</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- WORKOUT TAB -->
+        <div id="workoutSection" class="content-section active">
+            <div class="day-selector">
+                <button class="day-btn" data-day="Lunes">Lun</button>
+                <button class="day-btn" data-day="Martes">Mar</button>
+                <button class="day-btn" data-day="Miércoles">Mié</button>
+                <button class="day-btn" data-day="Jueves">Jue</button>
+                <button class="day-btn" data-day="Viernes">Vie</button>
+                <button class="day-btn" data-day="Sábado">Sáb</button>
+                <button class="day-btn" data-day="Domingo">Dom</button>
+            </div>
+            <div id="exercisesContainer"></div>
+        </div>
+
+        <!-- NUTRITION TAB -->
+        <div id="nutritionSection" class="content-section">
+            <div class="goals-section">
+                <div class="nutrition-header">🎯 Metas Semanales</div>
+                
+                <div class="goal-item">
+                    <div class="goal-header">
+                        <span class="goal-label">Meta de Calorías Diarias</span>
+                        <span class="goal-progress-text" id="caloriesGoalText">0 / 0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="caloriesGoalProgress" style="width: 0%"></div>
+                    </div>
+                    <div class="goal-input-group">
+                        <input type="number" id="caloriesGoalInput" placeholder="Meta diaria">
+                        <button class="btn-small" onclick="setGoal('calories')">Establecer</button>
+                    </div>
+                </div>
+
+                <div class="goal-item">
+                    <div class="goal-header">
+                        <span class="goal-label">Meta de Proteína Diaria (g)</span>
+                        <span class="goal-progress-text" id="proteinGoalText">0 / 0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="proteinGoalProgress" style="width: 0%"></div>
+                    </div>
+                    <div class="goal-input-group">
+                        <input type="number" id="proteinGoalInput" placeholder="Meta diaria">
+                        <button class="btn-small" onclick="setGoal('protein')">Establecer</button>
+                    </div>
+                </div>
+
+                <div class="goal-item">
+                    <div class="goal-header">
+                        <span class="goal-label">Meta de Entrenamientos Semanales</span>
+                        <span class="goal-progress-text" id="workoutsGoalText">0 / 0</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="workoutsGoalProgress" style="width: 0%"></div>
+                    </div>
+                    <div class="goal-input-group">
+                        <input type="number" id="workoutsGoalInput" placeholder="Entrenamientos por semana">
+                        <button class="btn-small" onclick="setGoal('workouts')">Establecer</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nutrition-card">
+                <div class="nutrition-header">🍽️ Registro Diario</div>
+                
+                <div class="macro-input">
+                    <label>Calorías consumidas</label>
+                    <input type="number" id="caloriesInput" placeholder="Ej: 2000" />
+                </div>
+
+                <div class="macro-input">
+                    <label>Proteínas (g)</label>
+                    <input type="number" id="proteinInput" placeholder="Ej: 150" />
+                </div>
+
+                <button class="btn-save" onclick="saveNutrition()">
+                    Guardar registro del día
+                </button>
+            </div>
+
+            <div class="nutrition-card">
+                <div class="nutrition-header">📊 Resumen Semanal</div>
+                <div class="macro-summary">
+                    <div class="macro-box">
+                        <div class="macro-value" id="avgCalories">0</div>
+                        <div class="macro-label">Calorías Promedio</div>
+                    </div>
+                    <div class="macro-box">
+                        <div class="macro-value" id="avgProtein">0</div>
+                        <div class="macro-label">Proteína Promedio (g)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="nutrition-card">
+                <div class="nutrition-header">📈 Gráfico de Nutrición (7 días)</div>
+                <div class="chart-container">
+                    <canvas id="nutritionChart"></canvas>
+                </div>
+            </div>
+
+            <div class="nutrition-card">
+                <div class="nutrition-header">📅 Historial (últimos 7 días)</div>
+                <div id="nutritionHistory"></div>
+            </div>
+        </div>
+
+        <!-- PROGRESS TAB -->
+        <div id="progressSection" class="content-section">
+            <div class="progress-section">
+                <div class="progress-header">📈 Esta Semana</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="completedWorkouts">0</div>
+                        <div class="stat-label">Entrenamientos</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="completedExercises">0</div>
+                        <div class="stat-label">Ejercicios</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="weekStreak">0</div>
+                        <div class="stat-label">Días consecutivos</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="weekCompletion">0%</div>
+                        <div class="stat-label">Completado</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-header">📊 Evolución Semanal</div>
+                <div class="chart-container">
+                    <canvas id="workoutChart"></canvas>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-header">🏆 Historial de Entrenamientos</div>
+                <div id="workoutHistory"></div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-header">💾 Backup de Datos</div>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                    Exporta tus datos para hacer backup o importa datos de un backup anterior.
+                </p>
+                <div class="backup-buttons">
+                    <button class="btn-backup btn-export" onclick="exportData()">
+                        📤 Exportar Datos
+                    </button>
+                    <button class="btn-backup btn-import" onclick="document.getElementById('importFile').click()">
+                        📥 Importar Datos
+                    </button>
+                </div>
+                <input type="file" id="importFile" accept=".json" onchange="importData(event)">
+            </div>
+        </div>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('workout')">
+            <div class="nav-icon">💪</div>
+            <div class="nav-label">Entrenamiento</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('nutrition')">
+            <div class="nav-icon">🍽️</div>
+            <div class="nav-label">Nutrición</div>
+        </div>
+        <div class="nav-item" onclick="switchTab('progress')">
+            <div class="nav-icon">📊</div>
+            <div class="nav-label">Progreso</div>
+        </div>
+    </div>
+
+    <div class="modal" id="phaseModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>⚙️ Gestionar Fases</span>
+                <button class="btn-close" onclick="closePhaseManager()">&times;</button>
+            </div>
+            
+            <div class="phase-list" id="phaseList"></div>
+
+            <div class="add-phase-form">
+                <h3 style="margin-bottom: 15px; font-size: 18px;">Agregar Nueva Fase</h3>
+                <div class="form-group">
+                    <label>Número de Fase</label>
+                    <input type="number" id="newPhaseNumber" placeholder="Ej: 2" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Nombre de la Fase</label>
+                    <input type="text" id="newPhaseName" placeholder="Ej: Hipertrofia">
+                </div>
+                <button class="btn-primary" onclick="addNewPhase()">Crear Fase</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="timer-modal" id="timerModal">
+        <div class="timer-content">
+            <h2 style="color: #667eea; margin-bottom: 10px;">⏱️ Timer de Descanso</h2>
+            <div class="timer-display" id="timerDisplay">01:30</div>
+            
+            <div class="preset-times">
+                <button class="btn-preset" onclick="setTimer(60)">1:00</button>
+                <button class="btn-preset" onclick="setTimer(90)">1:30</button>
+                <button class="btn-preset" onclick="setTimer(120)">2:00</button>
+                <button class="btn-preset" onclick="setTimer(180)">3:00</button>
+                <button class="btn-preset" onclick="setTimer(240)">4:00</button>
+                <button class="btn-preset" onclick="setTimer(300)">5:00</button>
+            </div>
+
+            <div class="timer-buttons">
+                <button class="btn-timer btn-timer-start" id="timerStartBtn" onclick="startTimer()">Iniciar</button>
+                <button class="btn-timer btn-timer-pause" id="timerPauseBtn" onclick="pauseTimer()" style="display: none;">Pausar</button>
+                <button class="btn-timer btn-timer-reset" onclick="resetTimer()">Reset</button>
+            </div>
+
+            <button class="btn-close" onclick="closeTimer()" style="margin-top: 20px; font-size: 16px;">Cerrar</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Estructura de entrenamiento por fases
+        const trainingPhases = {
+            1: {
+                name: "Fase 1 - Adaptación",
+                routine: {
+                    "Lunes": [
+                        { id: 1, tipo: "FUERZA", subtipo: "Superior", ejercicio: "Press de banca c/mancuernas", series: 3, reps: "10-12" },
+                        { id: 2, tipo: "FUERZA", subtipo: "Superior", ejercicio: "Remo sentado/máquina", series: 3, reps: "10-12" },
+                        { id: 3, tipo: "FUERZA", subtipo: "Superior", ejercicio: "Press hombro sentado", series: 3, reps: "10-12" },
+                        { id: 4, tipo: "FUERZA", subtipo: "Superior", ejercicio: "Curl de bíceps", series: 3, reps: "10-12" }
+                    ],
+                    "Martes": [
+                        { id: 5, tipo: "CARDIO", subtipo: "", ejercicio: "Cinta/Elíptica", series: 1, reps: "35 min", fc: "97-121 lpm" }
+                    ],
+                    "Miércoles": [
+                        { id: 6, tipo: "FUERZA", subtipo: "Inferior", ejercicio: "Prensa de piernas", series: 3, reps: "10-12" },
+                        { id: 7, tipo: "FUERZA", subtipo: "Inferior", ejercicio: "Extensión cuádriceps", series: 3, reps: "10-12" },
+                        { id: 8, tipo: "CORE", subtipo: "", ejercicio: "Plancha Isométrica", series: 3, reps: "30 seg" }
+                    ],
+                    "Jueves": [
+                        { id: 9, tipo: "CARDIO", subtipo: "", ejercicio: "Bici/Caminata", series: 1, reps: "35 min", fc: "97-121 lpm" }
+                    ],
+                    "Viernes": [
+                        { id: 10, tipo: "FUERZA", subtipo: "Total", ejercicio: "Sentadilla Goblet", series: 3, reps: "10-12" },
+                        { id: 11, tipo: "FUERZA", subtipo: "Total", ejercicio: "Peso Muerto Rumano (Ligero)", series: 3, reps: "10-12" }
+                    ],
+                    "Sábado": [
+                        { id: 12, tipo: "REFLEJOS", subtipo: "Neuro", ejercicio: "Lanzar/Atrapar Pelota", series: 3, reps: "1 min" },
+                        { id: 13, tipo: "REFLEJOS", subtipo: "Neuro", ejercicio: "Shadow Boxing", series: 3, reps: "1 min" }
+                    ],
+                    "Domingo": []
+                }
+            }
+        };
+
+        // Local Storage Keys
+        const STORAGE_KEYS = {
+            workouts: 'gym_workouts',
+            nutrition: 'gym_nutrition',
+            currentPhase: 'gym_current_phase',
+            phases: 'gym_phases',
+            goals: 'gym_goals'
+        };
+
+        // Current phase
+        let currentPhase = 1;
+
+        // Timer variables
+        let timerInterval = null;
+        let timerSeconds = 90;
+        let timerRunning = false;
+
+        // Charts
+        let nutritionChart = null;
+        let workoutChart = null;
+
+        // Initialize
+        function init() {
+            loadPhases();
+            loadCurrentPhase();
+            updateDate();
+            setCurrentDay();
+            updateNutritionStats();
+            updateProgressStats();
+        }
+
+        function loadPhases() {
+            const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
+            if (savedPhases) {
+                const phases = JSON.parse(savedPhases);
+                Object.assign(trainingPhases, phases);
+            }
+            updatePhaseSelector();
+        }
+
+        function loadCurrentPhase() {
+            const saved = localStorage.getItem(STORAGE_KEYS.currentPhase);
+            currentPhase = saved ? parseInt(saved) : 1;
+            document.getElementById('phaseSelect').value = currentPhase;
+        }
+
+        function savePhases() {
+            localStorage.setItem(STORAGE_KEYS.phases, JSON.stringify(trainingPhases));
+        }
+
+        function saveCurrentPhase() {
+            localStorage.setItem(STORAGE_KEYS.currentPhase, currentPhase.toString());
+        }
+
+        function updatePhaseSelector() {
+            const select = document.getElementById('phaseSelect');
+            select.innerHTML = '';
+            
+            Object.keys(trainingPhases).sort((a, b) => parseInt(a) - parseInt(b)).forEach(phaseNum => {
+                const phase = trainingPhases[phaseNum];
+                const option = document.createElement('option');
+                option.value = phaseNum;
+                option.textContent = phase.name;
+                select.appendChild(option);
+            });
+            
+            select.value = currentPhase;
+        }
+
+        function changePhase() {
+            currentPhase = parseInt(document.getElementById('phaseSelect').value);
+            saveCurrentPhase();
+            
+            // Reload current day's exercises
+            const activeDay = document.querySelector('.day-btn.active');
+            if (activeDay) {
+                loadExercises(activeDay.dataset.day);
+            }
+            
+            showToast(`Cambiado a ${trainingPhases[currentPhase].name}`);
+        }
+
+        function showPhaseManager() {
+            document.getElementById('phaseModal').classList.add('show');
+            updatePhaseList();
+        }
+
+        function closePhaseManager() {
+            document.getElementById('phaseModal').classList.remove('show');
+        }
+
+        function updatePhaseList() {
+            const container = document.getElementById('phaseList');
+            container.innerHTML = '';
+            
+            Object.keys(trainingPhases).sort((a, b) => parseInt(a) - parseInt(b)).forEach(phaseNum => {
+                const phase = trainingPhases[phaseNum];
+                const isActive = parseInt(phaseNum) === currentPhase;
+                
+                const div = document.createElement('div');
+                div.className = `phase-item ${isActive ? 'active' : ''}`;
+                div.innerHTML = `
+                    <div>
+                        <div class="phase-name">Fase ${phaseNum}</div>
+                        <div style="font-size: 12px; opacity: 0.8;">${phase.name}</div>
+                    </div>
+                    ${Object.keys(trainingPhases).length > 1 ? `
+                        <button class="btn-delete-phase" onclick="deletePhase(${phaseNum})">Eliminar</button>
+                    ` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addNewPhase() {
+            const phaseNumber = document.getElementById('newPhaseNumber').value;
+            const phaseName = document.getElementById('newPhaseName').value;
+
+            if (!phaseNumber || !phaseName) {
+                showToast('Por favor completa todos los campos');
+                return;
+            }
+
+            if (trainingPhases[phaseNumber]) {
+                showToast('Esta fase ya existe');
+                return;
+            }
+
+            trainingPhases[phaseNumber] = {
+                name: `Fase ${phaseNumber} - ${phaseName}`,
+                routine: {
+                    "Lunes": [],
+                    "Martes": [],
+                    "Miércoles": [],
+                    "Jueves": [],
+                    "Viernes": [],
+                    "Sábado": [],
+                    "Domingo": []
+                }
+            };
+
+            savePhases();
+            updatePhaseSelector();
+            updatePhaseList();
+            
+            document.getElementById('newPhaseNumber').value = '';
+            document.getElementById('newPhaseName').value = '';
+            
+            showToast('Fase creada exitosamente');
+        }
+
+        function deletePhase(phaseNum) {
+            if (Object.keys(trainingPhases).length === 1) {
+                showToast('No puedes eliminar la única fase');
+                return;
+            }
+
+            if (confirm(`¿Estás seguro de eliminar la Fase ${phaseNum}?`)) {
+                delete trainingPhases[phaseNum];
+                
+                if (currentPhase === parseInt(phaseNum)) {
+                    currentPhase = parseInt(Object.keys(trainingPhases)[0]);
+                    saveCurrentPhase();
+                }
+                
+                savePhases();
+                updatePhaseSelector();
+                updatePhaseList();
+                showToast('Fase eliminada');
+            }
+        }
+
+        function updateDate() {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const today = new Date().toLocaleDateString('es-ES', options);
+            document.getElementById('currentDate').textContent = today;
+        }
+
+        function setCurrentDay() {
+            const days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const today = days[new Date().getDay()];
+            
+            document.querySelectorAll('.day-btn').forEach(btn => {
+                if (btn.dataset.day === today) {
+                    btn.classList.add('active');
+                    loadExercises(today);
+                }
+            });
+        }
+
+        function loadExercises(day) {
+            const container = document.getElementById('exercisesContainer');
+            const currentRoutine = trainingPhases[currentPhase]?.routine || {};
+            const exercises = currentRoutine[day] || [];
+            
+            if (exercises.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">🎉</div>
+                        <div class="empty-state-text">¡Día de descanso! Relájate y recupérate.</div>
+                    </div>
+                `;
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const workoutData = getWorkoutData(today, currentPhase) || {};
+
+            container.innerHTML = exercises.map(ex => {
+                const exData = workoutData[ex.id] || {};
+                const isCompleted = exData.completed || false;
+                const typeClass = ex.tipo.toLowerCase();
+
+                return `
+                    <div class="exercise-card ${isCompleted ? 'completed' : ''}" data-id="${ex.id}">
+                        <div class="exercise-header">
+                            <span class="exercise-type type-${typeClass}">${ex.tipo} ${ex.subtipo}</span>
+                            ${isCompleted ? '<span style="font-size: 24px;">✅</span>' : ''}
+                        </div>
+                        <div class="exercise-name">${ex.ejercicio}</div>
+                        <div class="exercise-details">
+                            <div class="detail-item">
+                                <span>📋</span>
+                                <span>${ex.series} series</span>
+                            </div>
+                            <div class="detail-item">
+                                <span>🔄</span>
+                                <span>${ex.reps}</span>
+                            </div>
+                            ${ex.fc ? `<div class="detail-item"><span>❤️</span><span>${ex.fc}</span></div>` : ''}
+                        </div>
+                        ${ex.tipo === 'FUERZA' ? `
+                            <div class="input-group">
+                                <input type="number" placeholder="Peso (kg)" value="${exData.weight || ''}" data-field="weight">
+                                <input type="number" placeholder="Reps" value="${exData.actualReps || ''}" data-field="reps">
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-complete ${isCompleted ? 'completed' : ''}" onclick="toggleExercise(${ex.id}, '${day}')" style="flex: 1;">
+                                ${isCompleted ? '✓ Completado' : 'Marcar como completado'}
+                            </button>
+                            <button class="btn-start-timer" onclick="openTimer()">⏱️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleExercise(exerciseId, day) {
+            const today = new Date().toISOString().split('T')[0];
+            let workoutData = getWorkoutData(today, currentPhase) || {};
+            
+            const card = document.querySelector(`.exercise-card[data-id="${exerciseId}"]`);
+            const weightInput = card.querySelector('[data-field="weight"]');
+            const repsInput = card.querySelector('[data-field="reps"]');
+
+            const isCompleted = workoutData[exerciseId]?.completed || false;
+            
+            workoutData[exerciseId] = {
+                completed: !isCompleted,
+                weight: weightInput ? weightInput.value : null,
+                actualReps: repsInput ? repsInput.value : null,
+                timestamp: new Date().toISOString()
+            };
+
+            saveWorkoutData(today, currentPhase, workoutData);
+            loadExercises(day);
+            updateProgressStats();
+            updateGoalsDisplay();
+            showToast(isCompleted ? 'Ejercicio desmarcado' : '¡Ejercicio completado! 💪');
+        }
+
+        function getWorkoutData(date, phase) {
+            const data = localStorage.getItem(STORAGE_KEYS.workouts);
+            if (!data) return null;
+            const allData = JSON.parse(data);
+            return allData[`${date}_phase${phase}`];
+        }
+
+        function saveWorkoutData(date, phase, exercises) {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
+            data[`${date}_phase${phase}`] = exercises;
+            localStorage.setItem(STORAGE_KEYS.workouts, JSON.stringify(data));
+        }
+
+        function saveNutrition() {
+            const calories = document.getElementById('caloriesInput').value;
+            const protein = document.getElementById('proteinInput').value;
+
+            if (!calories || !protein) {
+                showToast('Por favor completa ambos campos');
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
+            
+            data[today] = {
+                calories: parseInt(calories),
+                protein: parseInt(protein),
+                timestamp: new Date().toISOString()
+            };
+
+            localStorage.setItem(STORAGE_KEYS.nutrition, JSON.stringify(data));
+            
+            document.getElementById('caloriesInput').value = '';
+            document.getElementById('proteinInput').value = '';
+            
+            updateNutritionStats();
+            updateGoalsDisplay();
+            createNutritionChart();
+            showToast('¡Registro guardado! 🎉');
+        }
+
+        function updateNutritionStats() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
+            const last7Days = getLast7Days();
+            
+            let totalCal = 0, totalPro = 0, count = 0;
+            
+            last7Days.forEach(date => {
+                if (data[date]) {
+                    totalCal += data[date].calories;
+                    totalPro += data[date].protein;
+                    count++;
+                }
+            });
+
+            document.getElementById('avgCalories').textContent = count > 0 ? Math.round(totalCal / count) : 0;
+            document.getElementById('avgProtein').textContent = count > 0 ? Math.round(totalPro / count) : 0;
+
+            // Update history
+            const historyContainer = document.getElementById('nutritionHistory');
+            if (count === 0) {
+                historyContainer.innerHTML = '<div class="empty-state-text" style="color: #666; padding: 20px;">No hay registros aún</div>';
+            } else {
+                historyContainer.innerHTML = last7Days.reverse().map(date => {
+                    if (data[date]) {
+                        const d = new Date(date);
+                        return `
+                            <div class="history-item">
+                                <div>
+                                    <div class="history-date">${d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                                </div>
+                                <div class="history-stats">
+                                    ${data[date].calories} kcal • ${data[date].protein}g proteína
+                                </div>
+                            </div>
+                        `;
+                    }
+                    return '';
+                }).join('');
+            }
+        }
+
+        function updateProgressStats() {
+            const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
+            const last7Days = getLast7Days();
+            
+            let completedWorkouts = 0;
+            let completedExercises = 0;
+            let streak = 0;
+            
+            const currentRoutine = trainingPhases[currentPhase]?.routine || {};
+            let totalPossibleExercises = 0;
+            Object.keys(currentRoutine).forEach(day => {
+                totalPossibleExercises += currentRoutine[day].length;
+            });
+
+            // Calculate stats for current phase
+            last7Days.forEach(date => {
+                const key = `${date}_phase${currentPhase}`;
+                if (workoutData[key]) {
+                    const dayExercises = Object.values(workoutData[key]);
+                    const completed = dayExercises.filter(ex => ex.completed).length;
+                    
+                    if (completed > 0) {
+                        completedWorkouts++;
+                        completedExercises += completed;
+                    }
+                }
+            });
+
+            // Calculate streak for current phase
+            const sortedDates = Object.keys(workoutData)
+                .filter(key => key.includes(`_phase${currentPhase}`))
+                .map(key => key.split('_phase')[0])
+                .sort()
+                .reverse();
+                
+            for (let date of sortedDates) {
+                const key = `${date}_phase${currentPhase}`;
+                const exercises = Object.values(workoutData[key] || {});
+                if (exercises.some(ex => ex.completed)) {
+                    streak++;
+                } else {
+                    break;
+                }
+            }
+
+            document.getElementById('completedWorkouts').textContent = completedWorkouts;
+            document.getElementById('completedExercises').textContent = completedExercises;
+            document.getElementById('weekStreak').textContent = streak;
+            document.getElementById('weekCompletion').textContent = 
+                totalPossibleExercises > 0 ? Math.round((completedExercises / totalPossibleExercises) * 100) + '%' : '0%';
+
+            // Update workout history
+            const historyContainer = document.getElementById('workoutHistory');
+            if (completedWorkouts === 0) {
+                historyContainer.innerHTML = '<div class="empty-state-text" style="color: #666; padding: 20px;">No hay entrenamientos registrados en esta fase</div>';
+            } else {
+                historyContainer.innerHTML = last7Days.reverse().map(date => {
+                    const key = `${date}_phase${currentPhase}`;
+                    if (workoutData[key]) {
+                        const exercises = Object.values(workoutData[key]);
+                        const completed = exercises.filter(ex => ex.completed).length;
+                        if (completed > 0) {
+                            const d = new Date(date);
+                            return `
+                                <div class="history-item">
+                                    <div>
+                                        <div class="history-date">${d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
+                                    </div>
+                                    <div class="history-stats">
+                                        ${completed} ejercicios completados
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+                    return '';
+                }).join('');
+            }
+        }
+
+        function getLast7Days() {
+            const dates = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                dates.push(date.toISOString().split('T')[0]);
+            }
+            return dates;
+        }
+
+        // ==================== TIMER FUNCTIONS ====================
+        
+        function openTimer() {
+            document.getElementById('timerModal').classList.add('show');
+            if (!timerRunning) {
+                resetTimer();
+            }
+        }
+
+        function closeTimer() {
+            document.getElementById('timerModal').classList.remove('show');
+            if (timerRunning) {
+                pauseTimer();
+            }
+        }
+
+        function setTimer(seconds) {
+            timerSeconds = seconds;
+            updateTimerDisplay();
+        }
+
+        function startTimer() {
+            timerRunning = true;
+            document.getElementById('timerStartBtn').style.display = 'none';
+            document.getElementById('timerPauseBtn').style.display = 'block';
+            
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                
+                if (timerSeconds <= 0) {
+                    pauseTimer();
+                    playSound();
+                    showToast('⏰ ¡Tiempo de descanso terminado!');
+                    timerSeconds = 90;
+                    updateTimerDisplay();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            timerRunning = false;
+            clearInterval(timerInterval);
+            document.getElementById('timerStartBtn').style.display = 'block';
+            document.getElementById('timerPauseBtn').style.display = 'none';
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timerSeconds = 90;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timerSeconds / 60);
+            const seconds = timerSeconds % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function playSound() {
+            // Create a simple beep sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        // ==================== GOALS FUNCTIONS ====================
+
+        function loadGoals() {
+            const goals = JSON.parse(localStorage.getItem(STORAGE_KEYS.goals) || '{}');
+            return {
+                calories: goals.calories || 2000,
+                protein: goals.protein || 150,
+                workouts: goals.workouts || 4
+            };
+        }
+
+        function saveGoals(goals) {
+            localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
+        }
+
+        function setGoal(type) {
+            const goals = loadGoals();
+            let value;
+
+            if (type === 'calories') {
+                value = parseInt(document.getElementById('caloriesGoalInput').value);
+                if (value) goals.calories = value;
+            } else if (type === 'protein') {
+                value = parseInt(document.getElementById('proteinGoalInput').value);
+                if (value) goals.protein = value;
+            } else if (type === 'workouts') {
+                value = parseInt(document.getElementById('workoutsGoalInput').value);
+                if (value) goals.workouts = value;
+            }
+
+            if (value) {
+                saveGoals(goals);
+                updateGoalsDisplay();
+                showToast('Meta actualizada correctamente');
+            }
+        }
+
+        function updateGoalsDisplay() {
+            const goals = loadGoals();
+            const nutritionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
+            const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
+            const last7Days = getLast7Days();
+            
+            // Calories goal
+            const today = new Date().toISOString().split('T')[0];
+            const todayNutrition = nutritionData[today];
+            const caloriesProgress = todayNutrition ? 
+                Math.min((todayNutrition.calories / goals.calories) * 100, 100) : 0;
+            
+            document.getElementById('caloriesGoalText').textContent = 
+                `${todayNutrition?.calories || 0} / ${goals.calories}`;
+            document.getElementById('caloriesGoalProgress').style.width = `${caloriesProgress}%`;
+            document.getElementById('caloriesGoalInput').value = goals.calories;
+
+            // Protein goal
+            const proteinProgress = todayNutrition ? 
+                Math.min((todayNutrition.protein / goals.protein) * 100, 100) : 0;
+            
+            document.getElementById('proteinGoalText').textContent = 
+                `${todayNutrition?.protein || 0}g / ${goals.protein}g`;
+            document.getElementById('proteinGoalProgress').style.width = `${proteinProgress}%`;
+            document.getElementById('proteinGoalInput').value = goals.protein;
+
+            // Workouts goal
+            let completedWorkouts = 0;
+            last7Days.forEach(date => {
+                const key = `${date}_phase${currentPhase}`;
+                if (workoutData[key]) {
+                    const exercises = Object.values(workoutData[key]);
+                    if (exercises.some(ex => ex.completed)) {
+                        completedWorkouts++;
+                    }
+                }
+            });
+
+            const workoutsProgress = Math.min((completedWorkouts / goals.workouts) * 100, 100);
+            document.getElementById('workoutsGoalText').textContent = 
+                `${completedWorkouts} / ${goals.workouts}`;
+            document.getElementById('workoutsGoalProgress').style.width = `${workoutsProgress}%`;
+            document.getElementById('workoutsGoalInput').value = goals.workouts;
+        }
+
+        // ==================== EXPORT/IMPORT FUNCTIONS ====================
+
+        function exportData() {
+            const data = {
+                workouts: localStorage.getItem(STORAGE_KEYS.workouts),
+                nutrition: localStorage.getItem(STORAGE_KEYS.nutrition),
+                phases: localStorage.getItem(STORAGE_KEYS.phases),
+                currentPhase: localStorage.getItem(STORAGE_KEYS.currentPhase),
+                goals: localStorage.getItem(STORAGE_KEYS.goals),
+                exportDate: new Date().toISOString()
+            };
+
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `gym-backup-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('📤 Datos exportados correctamente');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (confirm('¿Estás seguro de importar estos datos? Esto sobrescribirá tus datos actuales.')) {
+                        if (data.workouts) localStorage.setItem(STORAGE_KEYS.workouts, data.workouts);
+                        if (data.nutrition) localStorage.setItem(STORAGE_KEYS.nutrition, data.nutrition);
+                        if (data.phases) localStorage.setItem(STORAGE_KEYS.phases, data.phases);
+                        if (data.currentPhase) localStorage.setItem(STORAGE_KEYS.currentPhase, data.currentPhase);
+                        if (data.goals) localStorage.setItem(STORAGE_KEYS.goals, data.goals);
+                        
+                        showToast('📥 Datos importados correctamente');
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                } catch (error) {
+                    showToast('❌ Error al importar datos');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ==================== CHART FUNCTIONS ====================
+
+        function createNutritionChart() {
+            const ctx = document.getElementById('nutritionChart');
+            if (!ctx) return;
+
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
+            const last7Days = getLast7Days();
+            
+            const labels = last7Days.map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+            });
+            
+            const caloriesData = last7Days.map(date => data[date]?.calories || 0);
+            const proteinData = last7Days.map(date => data[date]?.protein || 0);
+
+            if (nutritionChart) {
+                nutritionChart.destroy();
+            }
+
+            nutritionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Calorías',
+                            data: caloriesData,
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Proteína (x10)',
+                            data: proteinData.map(p => p * 10),
+                            borderColor: '#52c41a',
+                            backgroundColor: 'rgba(82, 196, 26, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function createWorkoutChart() {
+            const ctx = document.getElementById('workoutChart');
+            if (!ctx) return;
+
+            const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
+            const last7Days = getLast7Days();
+            
+            const labels = last7Days.map(date => {
+                const d = new Date(date);
+                return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+            });
+            
+            const exercisesData = last7Days.map(date => {
+                const key = `${date}_phase${currentPhase}`;
+                if (workoutData[key]) {
+                    const exercises = Object.values(workoutData[key]);
+                    return exercises.filter(ex => ex.completed).length;
+                }
+                return 0;
+            });
+
+            if (workoutChart) {
+                workoutChart.destroy();
+            }
+
+            workoutChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Ejercicios Completados',
+                        data: exercisesData,
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function switchTab(tab) {
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // Update content
+            document.querySelectorAll('.content-section').forEach(section => section.classList.remove('active'));
+            
+            if (tab === 'workout') {
+                document.getElementById('workoutSection').classList.add('active');
+            } else if (tab === 'nutrition') {
+                document.getElementById('nutritionSection').classList.add('active');
+                updateNutritionStats();
+                updateGoalsDisplay();
+                setTimeout(() => createNutritionChart(), 100);
+            } else if (tab === 'progress') {
+                document.getElementById('progressSection').classList.add('active');
+                updateProgressStats();
+                setTimeout(() => createWorkoutChart(), 100);
+            }
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // Day selector
+        document.querySelectorAll('.day-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                loadExercises(this.dataset.day);
+            });
+        });
+
+        // Initialize app
+        init();
+    </script>
+</body>
+</html>
