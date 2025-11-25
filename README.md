@@ -24,6 +24,8 @@ Aplicación web progresiva completa para seguimiento de entrenamiento y nutrici�
 ### 💾 Gestión de Datos
 - 📤 **Exportar datos**: Descarga un backup JSON con toda tu información
 - 📥 **Importar datos**: Restaura tus datos desde un backup previo
+- ☁️ **Sincronización con Google Sheets**: Sync automático cross-dispositivo (NUEVO)
+- 🔄 **Auto-sync**: Sincronización en segundo plano al guardar datos
 - 🔒 **Privacidad total**: Todos tus datos se guardan localmente en tu dispositivo
 
 ### 📱 Optimización Móvil

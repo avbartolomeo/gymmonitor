@@ -778,6 +778,118 @@
         #importFile {
             display: none;
         }
+
+        /* Sync Styles */
+        .sync-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 10px;
+            background: #52c41a;
+        }
+
+        .sync-indicator.syncing {
+            background: #faad14;
+            animation: pulse 1s infinite;
+        }
+
+        .sync-indicator.error {
+            background: #ff4d4f;
+        }
+
+        .sync-indicator.offline {
+            background: #999;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .sync-status {
+            font-size: 11px;
+            color: #666;
+            margin-left: 5px;
+        }
+
+        .settings-section {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+
+        .settings-header {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sync-config {
+            margin-bottom: 15px;
+        }
+
+        .sync-config label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .sync-config input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+
+        .sync-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-sync {
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-sync-now {
+            background: #1890ff;
+            color: white;
+        }
+
+        .btn-sync-download {
+            background: #52c41a;
+            color: white;
+        }
+
+        .sync-info {
+            background: #f0f9ff;
+            border: 1px solid #91d5ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 12px;
+            color: #0050b3;
+        }
     </style>
 </head>
 <body>
@@ -952,6 +1064,47 @@
                 </div>
                 <input type="file" id="importFile" accept=".json" onchange="importData(event)">
             </div>
+
+            <div class="settings-section">
+                <div class="settings-header">
+                    <span>☁️ Sincronización con Google Sheets</span>
+                    <span class="sync-indicator" id="syncIndicator"></span>
+                </div>
+                
+                <div class="sync-config">
+                    <label>URL del Google Apps Script:</label>
+                    <input 
+                        type="text" 
+                        id="scriptUrl" 
+                        placeholder="https://script.google.com/macros/s/XXXXX/exec"
+                        onchange="saveScriptUrl()"
+                    >
+                </div>
+
+                <div class="sync-info">
+                    <strong>📋 Instrucciones:</strong>
+                    <ol style="margin: 10px 0 0 20px; padding: 0;">
+                        <li>Abre tu Google Sheet</li>
+                        <li>Extensiones → Apps Script</li>
+                        <li>Copia el código de GoogleAppsScript.js</li>
+                        <li>Implementa como Web App</li>
+                        <li>Pega la URL aquí arriba</li>
+                    </ol>
+                </div>
+
+                <div class="sync-buttons">
+                    <button class="btn-sync btn-sync-now" onclick="syncNow()">
+                        <span id="syncButtonText">🔄 Sincronizar Ahora</span>
+                    </button>
+                    <button class="btn-sync btn-sync-download" onclick="downloadFromCloud()">
+                        ☁️ Descargar de Nube
+                    </button>
+                </div>
+
+                <div style="margin-top: 10px; text-align: center;">
+                    <span class="sync-status" id="syncStatus">Sin configurar</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1062,7 +1215,9 @@
             nutrition: 'gym_nutrition',
             currentPhase: 'gym_current_phase',
             phases: 'gym_phases',
-            goals: 'gym_goals'
+            goals: 'gym_goals',
+            scriptUrl: 'gym_script_url',
+            lastSync: 'gym_last_sync'
         };
 
         // Current phase
@@ -1085,6 +1240,8 @@
             setCurrentDay();
             updateNutritionStats();
             updateProgressStats();
+            updateGoalsDisplay();
+            loadScriptUrl(); // Cargar configuración de sync
         }
 
         function loadPhases() {
@@ -1326,6 +1483,9 @@
             updateProgressStats();
             updateGoalsDisplay();
             showToast(isCompleted ? 'Ejercicio desmarcado' : '¡Ejercicio completado! 💪');
+            
+            // Auto-sync en background
+            autoSync();
         }
 
         function getWorkoutData(date, phase) {
@@ -1368,6 +1528,9 @@
             updateGoalsDisplay();
             createNutritionChart();
             showToast('¡Registro guardado! 🎉');
+            
+            // Auto-sync en background
+            autoSync();
         }
 
         function updateNutritionStats() {
@@ -1614,6 +1777,9 @@
                 saveGoals(goals);
                 updateGoalsDisplay();
                 showToast('Meta actualizada correctamente');
+                
+                // Auto-sync en background
+                autoSync();
             }
         }
 
@@ -1711,6 +1877,193 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // ==================== SYNC FUNCTIONS ====================
+
+        function saveScriptUrl() {
+            const url = document.getElementById('scriptUrl').value.trim();
+            if (url) {
+                localStorage.setItem(STORAGE_KEYS.scriptUrl, url);
+                updateSyncStatus('offline', '✅ URL guardada - Lista para sincronizar');
+                showToast('URL guardada correctamente');
+            }
+        }
+
+        function loadScriptUrl() {
+            const url = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            if (url) {
+                document.getElementById('scriptUrl').value = url;
+                const lastSync = localStorage.getItem(STORAGE_KEYS.lastSync);
+                if (lastSync) {
+                    const date = new Date(lastSync);
+                    updateSyncStatus('offline', `Última sync: ${date.toLocaleString('es-ES')}`);
+                } else {
+                    updateSyncStatus('offline', 'Configurado - No sincronizado aún');
+                }
+            } else {
+                updateSyncStatus('offline', 'Sin configurar');
+            }
+        }
+
+        function updateSyncStatus(state, message) {
+            const indicator = document.getElementById('syncIndicator');
+            const status = document.getElementById('syncStatus');
+            
+            indicator.className = 'sync-indicator';
+            
+            switch(state) {
+                case 'syncing':
+                    indicator.classList.add('syncing');
+                    break;
+                case 'success':
+                    // stays green (default)
+                    break;
+                case 'error':
+                    indicator.classList.add('error');
+                    break;
+                case 'offline':
+                    indicator.classList.add('offline');
+                    break;
+            }
+            
+            status.textContent = message;
+        }
+
+        async function syncNow() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            
+            if (!scriptUrl) {
+                showToast('⚠️ Configura la URL del script primero');
+                return;
+            }
+
+            const btnText = document.getElementById('syncButtonText');
+            btnText.textContent = '🔄 Sincronizando...';
+            updateSyncStatus('syncing', 'Subiendo datos...');
+
+            try {
+                // Recopilar todos los datos
+                const payload = {
+                    workouts: localStorage.getItem(STORAGE_KEYS.workouts),
+                    nutrition: localStorage.getItem(STORAGE_KEYS.nutrition),
+                    phases: localStorage.getItem(STORAGE_KEYS.phases),
+                    currentPhase: localStorage.getItem(STORAGE_KEYS.currentPhase),
+                    goals: localStorage.getItem(STORAGE_KEYS.goals)
+                };
+
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors', // Importante para Google Apps Script
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'sync_all',
+                        payload: payload
+                    })
+                });
+
+                // Con no-cors no podemos leer la respuesta, así que asumimos éxito
+                const now = new Date().toISOString();
+                localStorage.setItem(STORAGE_KEYS.lastSync, now);
+                
+                updateSyncStatus('success', `✅ Sincronizado ${new Date(now).toLocaleString('es-ES')}`);
+                showToast('☁️ Datos sincronizados exitosamente');
+                
+            } catch (error) {
+                console.error('Error al sincronizar:', error);
+                updateSyncStatus('error', '❌ Error al sincronizar');
+                showToast('❌ Error de conexión');
+            } finally {
+                btnText.textContent = '🔄 Sincronizar Ahora';
+            }
+        }
+
+        async function downloadFromCloud() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            
+            if (!scriptUrl) {
+                showToast('⚠️ Configura la URL del script primero');
+                return;
+            }
+
+            updateSyncStatus('syncing', 'Descargando datos...');
+
+            try {
+                const response = await fetch(`${scriptUrl}?action=get_all`, {
+                    method: 'GET'
+                });
+
+                const result = await response.json();
+                
+                if (result.success && result.data) {
+                    const data = result.data;
+                    
+                    // Preguntar antes de sobrescribir
+                    if (confirm('¿Descargar datos desde la nube? Esto sobrescribirá tus datos locales.')) {
+                        if (data.workouts) localStorage.setItem(STORAGE_KEYS.workouts, data.workouts);
+                        if (data.nutrition) localStorage.setItem(STORAGE_KEYS.nutrition, data.nutrition);
+                        if (data.phases) localStorage.setItem(STORAGE_KEYS.phases, data.phases);
+                        if (data.currentPhase) localStorage.setItem(STORAGE_KEYS.currentPhase, data.currentPhase);
+                        if (data.goals) localStorage.setItem(STORAGE_KEYS.goals, data.goals);
+                        
+                        if (data.lastSync) {
+                            localStorage.setItem(STORAGE_KEYS.lastSync, data.lastSync);
+                            updateSyncStatus('success', `✅ Descargado ${new Date(data.lastSync).toLocaleString('es-ES')}`);
+                        } else {
+                            updateSyncStatus('success', '✅ Datos descargados');
+                        }
+                        
+                        showToast('☁️ Datos descargados desde la nube');
+                        setTimeout(() => location.reload(), 1500);
+                    }
+                } else {
+                    updateSyncStatus('error', '❌ No hay datos en la nube');
+                    showToast('ℹ️ No hay datos guardados en la nube');
+                }
+                
+            } catch (error) {
+                console.error('Error al descargar:', error);
+                updateSyncStatus('error', '❌ Error al descargar');
+                showToast('❌ Error de conexión');
+            }
+        }
+
+        // Auto-sync al guardar datos importantes
+        async function autoSync() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            if (!scriptUrl) return; // No sincronizar si no está configurado
+            
+            // Sincronizar silenciosamente en background
+            try {
+                const payload = {
+                    workouts: localStorage.getItem(STORAGE_KEYS.workouts),
+                    nutrition: localStorage.getItem(STORAGE_KEYS.nutrition),
+                    phases: localStorage.getItem(STORAGE_KEYS.phases),
+                    currentPhase: localStorage.getItem(STORAGE_KEYS.currentPhase),
+                    goals: localStorage.getItem(STORAGE_KEYS.goals)
+                };
+
+                await fetch(scriptUrl, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'sync_all',
+                        payload: payload
+                    })
+                });
+
+                const now = new Date().toISOString();
+                localStorage.setItem(STORAGE_KEYS.lastSync, now);
+                
+            } catch (error) {
+                // Fallar silenciosamente - los datos están en localStorage de todas formas
+                console.log('Auto-sync falló (esto es normal si estás offline)');
+            }
         }
 
         // ==================== CHART FUNCTIONS ====================
