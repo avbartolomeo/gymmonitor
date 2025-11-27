@@ -573,6 +573,51 @@ function response(data, statusCode = 200) {
 
 // ==================== MIGRACIÓN ====================
 
+// Función helper para normalizar formato de repeticiones
+function normalizeReps(value) {
+  if (!value) return '';
+  
+  // Si es una fecha de Google Sheets (ej: 10-12 convertido a Oct 12)
+  if (value instanceof Date) {
+    const month = value.getMonth() + 1;
+    const day = value.getDate();
+    return month + '-' + day;
+  }
+  
+  // Convertir a string y limpiar
+  let reps = String(value).trim();
+  
+  // Si ya tiene formato correcto (X-Y o solo número), dejarlo
+  if (/^\d+(-\d+)?$/.test(reps)) {
+    return reps;
+  }
+  
+  // Si tiene texto como "min" o espacios, limpiarlo
+  reps = reps.replace(/\s+/g, ' ').trim();
+  
+  return reps;
+}
+
+// Función helper para normalizar nombres de días
+function normalizeDayName(day) {
+  if (!day) return '';
+  
+  const dayMap = {
+    'lunes': 'Lunes',
+    'martes': 'Martes',
+    'miércoles': 'Miércoles',
+    'miercoles': 'Miércoles',
+    'jueves': 'Jueves',
+    'viernes': 'Viernes',
+    'sábado': 'Sábado',
+    'sabado': 'Sábado',
+    'domingo': 'Domingo'
+  };
+  
+  const dayLower = String(day).toLowerCase().trim();
+  return dayMap[dayLower] || (String(day).charAt(0).toUpperCase() + String(day).slice(1).toLowerCase());
+}
+
 function migrateRoutineFromOldSheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const oldSheet = ss.getSheetByName('RUTINA_ENTRENAMIENTO');
@@ -586,68 +631,73 @@ function migrateRoutineFromOldSheet() {
   
   Logger.log('Iniciando migración de rutina...');
   
-  // Leer toda la estructura de la hoja vieja
+  // Leer toda la estructura de la hoja
   const data = oldSheet.getDataRange().getValues();
   Logger.log('Total de filas en RUTINA_ENTRENAMIENTO: ' + data.length);
   
-  // Estructura esperada: cada fila puede tener Fase, Día, y luego ejercicios
-  // Vamos a intentar detectar automáticamente la estructura
+  // Estructura de la hoja:
+  // [ID, FASE, DIA, TIPO, EJERCICIO, SERIES, REPS, FC_OBJETIVO]
   
   const phases = {};
-  let currentPhase = null;
-  let currentDay = null;
   
-  for (let i = 0; i < data.length; i++) {
+  // Saltar la primera fila (encabezados)
+  for (let i = 1; i < data.length; i++) {
     const row = data[i];
     
-    // Detectar si es un encabezado de fase
-    if (row[0] && String(row[0]).toLowerCase().includes('fase')) {
-      // Extraer número de fase
-      const match = String(row[0]).match(/(\d+)/);
-      if (match) {
-        currentPhase = parseInt(match[1]);
-        if (!phases[currentPhase]) {
-          phases[currentPhase] = {
-            name: row[0],
-            routine: {}
-          };
-        }
-        Logger.log('Detectada Fase: ' + currentPhase);
-      }
-      continue;
-    }
+    // Extraer datos de la fila
+    const exerciseId = row[0];
+    const phaseNumber = row[1];
+    const day = row[2];
+    const tipo = row[3];
+    const ejercicio = row[4];
+    const series = row[5];
+    let reps = row[6];
+    const fcObjetivo = row[7];
     
-    // Detectar si es un día de la semana
-    const dias = ['lunes', 'martes', 'miércoles', 'miercoles', 'jueves', 'viernes', 'sábado', 'sabado', 'domingo'];
-    const cellValue = String(row[0]).toLowerCase();
-    const isDia = dias.some(dia => cellValue.includes(dia));
+    // Si no hay fase o día, saltar
+    if (!phaseNumber || !day) continue;
     
-    if (isDia && currentPhase) {
-      // Normalizar nombre del día
-      currentDay = row[0].toString().trim();
-      currentDay = currentDay.charAt(0).toUpperCase() + currentDay.slice(1).toLowerCase();
-      
-      if (!phases[currentPhase].routine[currentDay]) {
-        phases[currentPhase].routine[currentDay] = [];
-      }
-      Logger.log('Detectado Día: ' + currentDay + ' en Fase ' + currentPhase);
-      continue;
-    }
-    
-    // Si tenemos fase y día, y hay datos en las columnas, es un ejercicio
-    if (currentPhase && currentDay && row[1]) {
-      const exercise = {
-        id: phases[currentPhase].routine[currentDay].length + 1,
-        ejercicio: row[1] || '',
-        series: row[2] || '',
-        reps: row[3] || '',
-        descanso: row[4] || '',
-        notas: row[5] || ''
+    // Inicializar fase si no existe
+    if (!phases[phaseNumber]) {
+      phases[phaseNumber] = {
+        name: 'Fase ' + phaseNumber,
+        routine: {}
       };
-      
-      phases[currentPhase].routine[currentDay].push(exercise);
-      Logger.log('  Ejercicio agregado: ' + exercise.ejercicio);
     }
+    
+    // Normalizar nombre del día usando función helper
+    const dayName = normalizeDayName(day);
+    
+    // Inicializar día si no existe
+    if (!phases[phaseNumber].routine[dayName]) {
+      phases[phaseNumber].routine[dayName] = [];
+    }
+    
+    // Normalizar formato de repeticiones
+    const normalizedReps = normalizeReps(reps);
+    
+    // Normalizar series (convertir a string limpio)
+    const normalizedSeries = String(series || '').trim();
+    
+    // Limpiar y normalizar otros campos
+    const normalizedTipo = String(tipo || '').trim();
+    const normalizedEjercicio = String(ejercicio || '').trim();
+    const normalizedFcObjetivo = String(fcObjetivo || '').trim();
+    
+    // Crear objeto de ejercicio con formato estandarizado
+    const exercise = {
+      id: exerciseId,
+      tipo: normalizedTipo,
+      ejercicio: normalizedEjercicio,
+      series: normalizedSeries,
+      reps: normalizedReps,
+      descanso: '',
+      fcObjetivo: normalizedFcObjetivo,
+      notas: ''
+    };
+    
+    phases[phaseNumber].routine[dayName].push(exercise);
+    Logger.log('Fase ' + phaseNumber + ' - ' + dayName + ': ' + ejercicio);
   }
   
   // Guardar todas las fases en la nueva estructura
@@ -660,7 +710,7 @@ function migrateRoutineFromOldSheet() {
       routine: phase.routine
     });
     migratedCount++;
-    Logger.log('Fase ' + phaseNumber + ' guardada con ' + Object.keys(phase.routine).length + ' días');
+    Logger.log('✓ Fase ' + phaseNumber + ' guardada con ' + Object.keys(phase.routine).length + ' días');
   });
   
   return {
@@ -668,6 +718,7 @@ function migrateRoutineFromOldSheet() {
     message: 'Migración completada',
     phasesFound: Object.keys(phases).length,
     phasesMigrated: migratedCount,
+    totalExercises: data.length - 1,
     details: phases
   };
 }
