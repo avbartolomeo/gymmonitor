@@ -146,15 +146,22 @@ function getWorkouts(startDate, endDate, phase) {
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const date = row[0];
+    // Convertir fecha a string YYYY-MM-DD si es un objeto Date
+    let dateStr = row[0];
+    if (dateStr instanceof Date) {
+      dateStr = Utilities.formatDate(dateStr, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
     const workoutPhase = row[1];
     
+    // Si la fila está vacía, saltar
+    if (!dateStr && !workoutPhase) continue;
+    
     // Filtrar por rango de fechas y fase
-    if ((!startDate || date >= startDate) && 
-        (!endDate || date <= endDate) &&
+    if ((!startDate || dateStr >= startDate) && 
+        (!endDate || dateStr <= endDate) &&
         (!phase || workoutPhase == phase)) {
       workouts.push({
-        date: date,
+        date: dateStr,
         phase: workoutPhase,
         exerciseId: row[2],
         completed: row[3],
@@ -211,11 +218,18 @@ function getNutrition(startDate, endDate) {
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    const date = row[0];
+    // Convertir fecha a string YYYY-MM-DD si es un objeto Date
+    let dateStr = row[0];
+    if (dateStr instanceof Date) {
+      dateStr = Utilities.formatDate(dateStr, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    }
     
-    if ((!startDate || date >= startDate) && (!endDate || date <= endDate)) {
+    // Si la fila está vacía, saltar
+    if (!dateStr) continue;
+    
+    if ((!startDate || dateStr >= startDate) && (!endDate || dateStr <= endDate)) {
       nutrition.push({
-        date: date,
+        date: dateStr,
         calories: row[1],
         protein: row[2],
         timestamp: row[3]
