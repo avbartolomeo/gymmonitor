@@ -1428,7 +1428,12 @@
                 return;
             }
 
-            const today = new Date().toISOString().split('T')[0];
+            // Usar fecha local sin zona horaria
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day_num = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day_num}`;
             const workoutData = getWorkoutData(today, currentPhase) || {};
 
             container.innerHTML = exercises.map(ex => {
@@ -1472,7 +1477,12 @@
         }
 
         function toggleExercise(exerciseId, day) {
-            const today = new Date().toISOString().split('T')[0];
+            // Usar fecha local sin zona horaria
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day_num = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day_num}`;
             let workoutData = getWorkoutData(today, currentPhase) || {};
             
             const card = document.querySelector(`.exercise-card[data-id="${exerciseId}"]`);
@@ -1520,7 +1530,12 @@
                 return;
             }
 
-            const today = new Date().toISOString().split('T')[0];
+            // Usar fecha local sin zona horaria
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day_num = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day_num}`;
             const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
             
             data[today] = {
@@ -1565,9 +1580,11 @@
             if (count === 0) {
                 historyContainer.innerHTML = '<div class="empty-state-text" style="color: #666; padding: 20px;">No hay registros aún</div>';
             } else {
-                historyContainer.innerHTML = last7Days.reverse().map(date => {
+                // Crear copia del array antes de invertir
+                const reversedDays = [...last7Days].reverse();
+                historyContainer.innerHTML = reversedDays.map(date => {
                     if (data[date]) {
-                        const d = new Date(date);
+                        const d = new Date(date + 'T00:00:00');
                         return `
                             <div class="history-item">
                                 <div>
@@ -1612,21 +1629,26 @@
                 }
             });
 
-            // Calculate streak for current phase
-            const sortedDates = Object.keys(workoutData)
-                .filter(key => key.includes(`_phase${currentPhase}`))
-                .map(key => key.split('_phase')[0])
-                .sort()
-                .reverse();
+            // Calculate streak - contar días consecutivos desde hoy hacia atrás
+            const today = new Date();
+            let currentStreakDate = new Date(today);
+            
+            while (true) {
+                const year = currentStreakDate.getFullYear();
+                const month = String(currentStreakDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentStreakDate.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                const key = `${dateStr}_phase${currentPhase}`;
                 
-            for (let date of sortedDates) {
-                const key = `${date}_phase${currentPhase}`;
-                const exercises = Object.values(workoutData[key] || {});
-                if (exercises.some(ex => ex.completed)) {
-                    streak++;
-                } else {
-                    break;
+                if (workoutData[key]) {
+                    const exercises = Object.values(workoutData[key]);
+                    if (exercises.some(ex => ex.completed)) {
+                        streak++;
+                        currentStreakDate.setDate(currentStreakDate.getDate() - 1);
+                        continue;
+                    }
                 }
+                break;
             }
 
             document.getElementById('completedWorkouts').textContent = completedWorkouts;
@@ -1640,13 +1662,15 @@
             if (completedWorkouts === 0) {
                 historyContainer.innerHTML = '<div class="empty-state-text" style="color: #666; padding: 20px;">No hay entrenamientos registrados en esta fase</div>';
             } else {
-                historyContainer.innerHTML = last7Days.reverse().map(date => {
+                // Crear copia del array antes de invertir
+                const reversedDays = [...last7Days].reverse();
+                historyContainer.innerHTML = reversedDays.map(date => {
                     const key = `${date}_phase${currentPhase}`;
                     if (workoutData[key]) {
                         const exercises = Object.values(workoutData[key]);
                         const completed = exercises.filter(ex => ex.completed).length;
                         if (completed > 0) {
-                            const d = new Date(date);
+                            const d = new Date(date + 'T00:00:00');
                             return `
                                 <div class="history-item">
                                     <div>
@@ -1669,7 +1693,11 @@
             for (let i = 6; i >= 0; i--) {
                 const date = new Date();
                 date.setDate(date.getDate() - i);
-                dates.push(date.toISOString().split('T')[0]);
+                // Usar fecha local sin zona horaria
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                dates.push(`${year}-${month}-${day}`);
             }
             return dates;
         }
@@ -1799,8 +1827,12 @@
             const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
             const last7Days = getLast7Days();
             
-            // Calories goal
-            const today = new Date().toISOString().split('T')[0];
+            // Calories goal - usar fecha local
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day_num = String(now.getDate()).padStart(2, '0');
+            const today = `${year}-${month}-${day_num}`;
             const todayNutrition = nutritionData[today];
             const caloriesProgress = todayNutrition ? 
                 Math.min((todayNutrition.calories / goals.calories) * 100, 100) : 0;
