@@ -392,8 +392,16 @@ function response(data, statusCode = 200) {
 
 // ==================== FUNCIONES DE TEST ====================
 
-function testSaveWorkout() {
-  const result = saveWorkout({
+function testCompleto() {
+  Logger.log('========================================');
+  Logger.log('INICIANDO PRUEBA COMPLETA DEL SISTEMA');
+  Logger.log('========================================\n');
+  
+  // TEST 1: Guardar entrenamientos
+  Logger.log('TEST 1: Guardar entrenamientos');
+  Logger.log('--------------------------------');
+  
+  const workout1 = saveWorkout({
     date: '2025-11-25',
     phase: 1,
     exerciseId: 1,
@@ -401,32 +409,120 @@ function testSaveWorkout() {
     weight: 50,
     actualReps: 12
   });
-  Logger.log(result);
-}
-
-function testGetWorkouts() {
-  // Primero verificar qué hay en la hoja
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName(SHEETS.WORKOUTS);
+  Logger.log('✓ Workout 1 guardado: ' + JSON.stringify(workout1));
   
-  if (!sheet) {
-    Logger.log('ERROR: Hoja Entrenamientos no existe');
-    return;
-  }
+  const workout2 = saveWorkout({
+    date: '2025-11-25',
+    phase: 1,
+    exerciseId: 2,
+    completed: true,
+    weight: 30,
+    actualReps: 10
+  });
+  Logger.log('✓ Workout 2 guardado: ' + JSON.stringify(workout2));
   
-  const data = sheet.getDataRange().getValues();
-  Logger.log('Total filas en Entrenamientos: ' + data.length);
-  Logger.log('Datos raw: ' + JSON.stringify(data));
+  const workout3 = saveWorkout({
+    date: '2025-11-26',
+    phase: 1,
+    exerciseId: 5,
+    completed: true,
+    weight: '',
+    actualReps: ''
+  });
+  Logger.log('✓ Workout 3 guardado: ' + JSON.stringify(workout3) + '\n');
   
-  const result = getWorkouts('2025-11-20', '2025-11-27', 1);
-  Logger.log('Resultado filtrado: ' + JSON.stringify(result));
-}
-
-function testSaveNutrition() {
-  const result = saveNutrition({
+  // TEST 2: Leer entrenamientos
+  Logger.log('TEST 2: Leer entrenamientos');
+  Logger.log('----------------------------');
+  const workouts = getWorkouts('2025-11-20', '2025-11-27', 1);
+  Logger.log('Total entrenamientos encontrados: ' + workouts.length);
+  Logger.log('Datos: ' + JSON.stringify(workouts) + '\n');
+  
+  // TEST 3: Guardar nutrición
+  Logger.log('TEST 3: Guardar nutrición');
+  Logger.log('-------------------------');
+  
+  const nutrition1 = saveNutrition({
     date: '2025-11-25',
     calories: 2200,
     protein: 160
   });
-  Logger.log(result);
+  Logger.log('✓ Nutrición 1 guardada: ' + JSON.stringify(nutrition1));
+  
+  const nutrition2 = saveNutrition({
+    date: '2025-11-26',
+    calories: 2500,
+    protein: 180
+  });
+  Logger.log('✓ Nutrición 2 guardada: ' + JSON.stringify(nutrition2) + '\n');
+  
+  // TEST 4: Leer nutrición
+  Logger.log('TEST 4: Leer nutrición');
+  Logger.log('----------------------');
+  const nutritionData = getNutrition('2025-11-20', '2025-11-27');
+  Logger.log('Total registros de nutrición: ' + nutritionData.length);
+  Logger.log('Datos: ' + JSON.stringify(nutritionData) + '\n');
+  
+  // TEST 5: Guardar metas
+  Logger.log('TEST 5: Guardar metas');
+  Logger.log('---------------------');
+  const goalsResult = saveGoals({
+    calories: 2000,
+    protein: 150,
+    workouts: 4
+  });
+  Logger.log('✓ Metas guardadas: ' + JSON.stringify(goalsResult) + '\n');
+  
+  // TEST 6: Leer metas
+  Logger.log('TEST 6: Leer metas');
+  Logger.log('------------------');
+  const goals = getGoals();
+  Logger.log('Metas: ' + JSON.stringify(goals) + '\n');
+  
+  // TEST 7: Guardar fase
+  Logger.log('TEST 7: Guardar fase');
+  Logger.log('--------------------');
+  const phaseResult = savePhase({
+    phaseNumber: 1,
+    name: 'Fase 1 - Adaptación',
+    routine: {
+      Lunes: [{id: 1, ejercicio: 'Press de banca'}],
+      Martes: [{id: 5, ejercicio: 'Cardio'}]
+    }
+  });
+  Logger.log('✓ Fase guardada: ' + JSON.stringify(phaseResult) + '\n');
+  
+  // TEST 8: Leer fases
+  Logger.log('TEST 8: Leer fases');
+  Logger.log('------------------');
+  const phases = getPhases();
+  Logger.log('Fases: ' + JSON.stringify(phases) + '\n');
+  
+  // TEST 9: Configuración de fase actual
+  Logger.log('TEST 9: Configuración');
+  Logger.log('---------------------');
+  const setPhaseResult = setCurrentPhase(1);
+  Logger.log('✓ Fase actual establecida: ' + JSON.stringify(setPhaseResult));
+  
+  const currentPhase = getCurrentPhase();
+  Logger.log('Fase actual: ' + currentPhase + '\n');
+  
+  // TEST 10: Verificar hojas creadas
+  Logger.log('TEST 10: Verificar hojas');
+  Logger.log('------------------------');
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  Logger.log('Total de hojas: ' + sheets.length);
+  Logger.log('Nombres de hojas:');
+  sheets.forEach(sheet => {
+    Logger.log('  - ' + sheet.getName() + ' (' + sheet.getLastRow() + ' filas)');
+  });
+  
+  Logger.log('\n========================================');
+  Logger.log('PRUEBA COMPLETA FINALIZADA ✓');
+  Logger.log('========================================');
+  Logger.log('\nAhora puedes:');
+  Logger.log('1. Revisar las hojas creadas en tu Google Sheet');
+  Logger.log('2. Crear nueva implementación del script');
+  Logger.log('3. Probar la URL desde el navegador');
 }
