@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Entrenamiento</title>
+    <script src="config.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
@@ -32,6 +33,18 @@
             font-size: 24px;
             color: #667eea;
             margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .version-badge {
+            font-size: 10px;
+            padding: 3px 8px;
+            background: #10b981;
+            color: white;
+            border-radius: 12px;
+            font-weight: 600;
         }
 
         .date-display {
@@ -904,7 +917,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>💪 Mi Entrenamiento</h1>
+        <h1>💪 Mi Entrenamiento <span class="version-badge">v2.0-API</span></h1>
         <div class="date-display" id="currentDate"></div>
         <div class="phase-selector">
             <span class="phase-label">Fase:</span>
@@ -1243,38 +1256,72 @@
         let workoutChart = null;
 
         // Initialize
-        function init() {
-            loadPhases();
-            loadCurrentPhase();
+        async function init() {
+            await loadPhases();
+            await loadCurrentPhase();
             updateDate();
             setCurrentDay();
-            updateNutritionStats();
-            updateProgressStats();
-            updateGoalsDisplay();
+            await updateNutritionStats();
+            await updateProgressStats();
+            await updateGoalsDisplay();
             loadScriptUrl(); // Cargar configuración de sync
         }
 
-        function loadPhases() {
-            const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
-            if (savedPhases) {
-                const phases = JSON.parse(savedPhases);
-                Object.assign(trainingPhases, phases);
+        async function loadPhases() {
+            try {
+                const phases = await GymAPI.getPhases();
+                if (phases && Object.keys(phases).length > 0) {
+                    Object.assign(trainingPhases, phases);
+                }
+            } catch (error) {
+                console.error('Error cargando fases:', error);
+                // Fallback a localStorage si falla el API
+                const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
+                if (savedPhases) {
+                    const phases = JSON.parse(savedPhases);
+                    Object.assign(trainingPhases, phases);
+                }
             }
             updatePhaseSelector();
         }
 
-        function loadCurrentPhase() {
-            const saved = localStorage.getItem(STORAGE_KEYS.currentPhase);
-            currentPhase = saved ? parseInt(saved) : 1;
+        async function loadCurrentPhase() {
+            try {
+                currentPhase = await GymAPI.getCurrentPhase();
+            } catch (error) {
+                console.error('Error cargando fase actual:', error);
+                // Fallback a localStorage si falla el API
+                const saved = localStorage.getItem(STORAGE_KEYS.currentPhase);
+                currentPhase = saved ? parseInt(saved) : 1;
+            }
             document.getElementById('phaseSelect').value = currentPhase;
         }
 
-        function savePhases() {
-            localStorage.setItem(STORAGE_KEYS.phases, JSON.stringify(trainingPhases));
+        async function savePhases() {
+            try {
+                // Guardar cada fase en el API
+                for (const [phaseNumber, phaseData] of Object.entries(trainingPhases)) {
+                    await GymAPI.savePhase({
+                        phaseNumber: parseInt(phaseNumber),
+                        name: phaseData.name,
+                        routine: phaseData.routine
+                    });
+                }
+            } catch (error) {
+                console.error('Error guardando fases:', error);
+                // Fallback a localStorage si falla el API
+                localStorage.setItem(STORAGE_KEYS.phases, JSON.stringify(trainingPhases));
+            }
         }
 
-        function saveCurrentPhase() {
-            localStorage.setItem(STORAGE_KEYS.currentPhase, currentPhase.toString());
+        async function saveCurrentPhase() {
+            try {
+                await GymAPI.setCurrentPhase(currentPhase);
+            } catch (error) {
+                console.error('Error guardando fase actual:', error);
+                // Fallback a localStorage si falla el API
+                localStorage.setItem(STORAGE_KEYS.currentPhase, currentPhase.toString());
+            }
         }
 
         function updatePhaseSelector() {
@@ -1498,6 +1545,16 @@
                 timestamp: new Date().toISOString()
             };
 
+            // Guardar en API
+            GymAPI.saveWorkout({
+                date: today,
+                phase: currentPhase,
+                exerciseId: exerciseId,
+                completed: !isCompleted,
+                weight: weightInput ? weightInput.value : '',
+                actualReps: repsInput ? repsInput.value : ''
+            }).catch(err => console.error('Error guardando workout:', err));
+
             saveWorkoutData(today, currentPhase, workoutData);
             loadExercises(day);
             updateProgressStats();
@@ -1544,6 +1601,13 @@
                 timestamp: new Date().toISOString()
             };
 
+            // Guardar en API
+            GymAPI.saveNutrition({
+                date: today,
+                calories: parseInt(calories),
+                protein: parseInt(protein)
+            }).catch(err => console.error('Error guardando nutrición:', err));
+
             localStorage.setItem(STORAGE_KEYS.nutrition, JSON.stringify(data));
             
             document.getElementById('caloriesInput').value = '';
@@ -1558,7 +1622,7 @@
             autoSync();
         }
 
-        function updateNutritionStats() {
+        async function updateNutritionStats() {
             const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
             const last7Days = getLast7Days();
             
@@ -1601,7 +1665,7 @@
             }
         }
 
-        function updateProgressStats() {
+        async function updateProgressStats() {
             const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
             const last7Days = getLast7Days();
             
@@ -1794,21 +1858,38 @@
 
         // ==================== GOALS FUNCTIONS ====================
 
-        function loadGoals() {
-            const goals = JSON.parse(localStorage.getItem(STORAGE_KEYS.goals) || '{}');
-            return {
-                calories: goals.calories || 2000,
-                protein: goals.protein || 150,
-                workouts: goals.workouts || 4
-            };
+        async function loadGoals() {
+            try {
+                const goals = await GymAPI.getGoals();
+                return {
+                    calories: goals.calories || 2000,
+                    protein: goals.protein || 150,
+                    workouts: goals.workouts || 4
+                };
+            } catch (error) {
+                console.error('Error cargando metas:', error);
+                // Fallback a localStorage
+                const goals = JSON.parse(localStorage.getItem(STORAGE_KEYS.goals) || '{}');
+                return {
+                    calories: goals.calories || 2000,
+                    protein: goals.protein || 150,
+                    workouts: goals.workouts || 4
+                };
+            }
         }
 
-        function saveGoals(goals) {
+        async function saveGoals(goals) {
+            try {
+                await GymAPI.saveGoals(goals);
+            } catch (error) {
+                console.error('Error guardando metas:', error);
+            }
+            // Mantener localStorage como fallback
             localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
         }
 
-        function setGoal(type) {
-            const goals = loadGoals();
+        async function setGoal(type) {
+            const goals = await loadGoals();
             let value;
 
             if (type === 'calories') {
@@ -1823,7 +1904,7 @@
             }
 
             if (value) {
-                saveGoals(goals);
+                await saveGoals(goals);
                 updateGoalsDisplay();
                 showToast('Meta actualizada correctamente');
                 
@@ -1832,8 +1913,8 @@
             }
         }
 
-        function updateGoalsDisplay() {
-            const goals = loadGoals();
+        async function updateGoalsDisplay() {
+            const goals = await loadGoals();
             const nutritionData = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
             const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
             const last7Days = getLast7Days();
