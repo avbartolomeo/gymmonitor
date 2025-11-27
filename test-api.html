@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API - Gym Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #666;
+            margin-top: 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        .loading {
+            color: #2196F3;
+            font-style: italic;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏋️ Gym Monitor - Test de API</h1>
+    
+    <div class="container">
+        <h2>📡 Estado de Conexión</h2>
+        <p>URL de la API: <code id="apiUrl"></code></p>
+        <p id="connectionStatus" class="loading">Verificando conexión...</p>
+    </div>
+
+    <div class="container">
+        <h2>🧪 Pruebas de Endpoints</h2>
+        <div class="button-group">
+            <button onclick="testGetPhases()">📋 Obtener Fases</button>
+            <button onclick="testGetCurrentPhase()">🎯 Fase Actual</button>
+            <button onclick="testGetGoals()">🎯 Obtener Metas</button>
+            <button onclick="testGetWorkouts()">💪 Entrenamientos (últimos 7 días)</button>
+            <button onclick="testGetNutrition()">🍎 Nutrición (últimos 7 días)</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>📊 Resultado</h2>
+        <pre id="result">Los resultados aparecerán aquí...</pre>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // Mostrar URL de la API
+        document.getElementById('apiUrl').textContent = SCRIPT_URL;
+
+        // Función helper para mostrar resultados
+        function showResult(data, isError = false) {
+            const resultElement = document.getElementById('result');
+            resultElement.textContent = JSON.stringify(data, null, 2);
+            resultElement.style.color = isError ? '#f44336' : '#333';
+        }
+
+        // Función helper para obtener fechas
+        function getDateRange() {
+            const today = new Date();
+            const sevenDaysAgo = new Date(today);
+            sevenDaysAgo.setDate(today.getDate() - 7);
+            
+            return {
+                startDate: sevenDaysAgo.toISOString().split('T')[0],
+                endDate: today.toISOString().split('T')[0]
+            };
+        }
+
+        // Verificar conexión inicial
+        async function checkConnection() {
+            const statusElement = document.getElementById('connectionStatus');
+            try {
+                statusElement.textContent = 'Conectando...';
+                statusElement.className = 'loading';
+                
+                const response = await GymAPI.getPhases();
+                
+                if (response.success) {
+                    const phaseCount = Object.keys(response.data).length;
+                    statusElement.textContent = `✓ Conectado correctamente (${phaseCount} fase(s) encontrada(s))`;
+                    statusElement.className = 'success';
+                } else {
+                    statusElement.textContent = '✗ Conexión establecida pero sin datos';
+                    statusElement.className = 'error';
+                }
+            } catch (error) {
+                statusElement.textContent = '✗ Error de conexión: ' + error.message;
+                statusElement.className = 'error';
+            }
+        }
+
+        // Tests de endpoints
+        async function testGetPhases() {
+            try {
+                showResult({ status: 'Cargando fases...' });
+                const response = await GymAPI.getPhases();
+                showResult(response);
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        async function testGetCurrentPhase() {
+            try {
+                showResult({ status: 'Obteniendo fase actual...' });
+                const response = await GymAPI.getCurrentPhase();
+                showResult(response);
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        async function testGetGoals() {
+            try {
+                showResult({ status: 'Obteniendo metas...' });
+                const response = await GymAPI.getGoals();
+                showResult(response);
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        async function testGetWorkouts() {
+            try {
+                showResult({ status: 'Obteniendo entrenamientos...' });
+                const { startDate, endDate } = getDateRange();
+                const response = await GymAPI.getWorkouts(startDate, endDate, null);
+                showResult(response);
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        async function testGetNutrition() {
+            try {
+                showResult({ status: 'Obteniendo datos de nutrición...' });
+                const { startDate, endDate } = getDateRange();
+                const response = await GymAPI.getNutrition(startDate, endDate);
+                showResult(response);
+            } catch (error) {
+                showResult({ error: error.message }, true);
+            }
+        }
+
+        // Verificar conexión al cargar la página
+        checkConnection();
+    </script>
+</body>
+</html>
