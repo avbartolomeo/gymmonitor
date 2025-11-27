@@ -63,6 +63,18 @@ function doPost(e) {
       case 'set_current_phase':
         result = setCurrentPhase(data.phaseId);
         break;
+      case 'add_exercise_to_phase':
+        result = addExerciseToPhase(data.phaseNumber, data.day, data.exercise);
+        break;
+      case 'remove_exercise_from_phase':
+        result = removeExerciseFromPhase(data.phaseNumber, data.day, data.exerciseId);
+        break;
+      case 'update_exercise_in_phase':
+        result = updateExerciseInPhase(data.phaseNumber, data.day, data.exerciseId, data.updates);
+        break;
+      case 'migrate_routine':
+        result = migrateRoutineFromOldSheet();
+        break;
       default:
         return response({error: 'Acción desconocida: ' + action}, 400);
     }
@@ -334,6 +346,161 @@ function getPhases() {
   return phases;
 }
 
+// Agregar ejercicio a una fase específica
+function addExerciseToPhase(phaseNumber, day, exercise) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEETS.PHASES);
+  
+  if (!sheet) {
+    return { error: 'No existe la hoja de Fases' };
+  }
+  
+  // Buscar la fase
+  const data = sheet.getDataRange().getValues();
+  let phaseRow = -1;
+  let currentRoutine = {};
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == phaseNumber) {
+      phaseRow = i + 1;
+      currentRoutine = JSON.parse(data[i][2] || '{}');
+      break;
+    }
+  }
+  
+  if (phaseRow === -1) {
+    return { error: 'Fase no encontrada: ' + phaseNumber };
+  }
+  
+  // Inicializar el día si no existe
+  if (!currentRoutine[day]) {
+    currentRoutine[day] = [];
+  }
+  
+  // Asignar ID automático si no viene
+  if (!exercise.id) {
+    const maxId = currentRoutine[day].reduce((max, ex) => Math.max(max, ex.id || 0), 0);
+    exercise.id = maxId + 1;
+  }
+  
+  // Agregar el ejercicio
+  currentRoutine[day].push(exercise);
+  
+  // Actualizar la hoja
+  const timestamp = new Date().toISOString();
+  sheet.getRange(phaseRow, 3).setValue(JSON.stringify(currentRoutine));
+  sheet.getRange(phaseRow, 4).setValue(timestamp);
+  
+  return { 
+    success: true, 
+    phaseNumber, 
+    day, 
+    exercise,
+    message: 'Ejercicio agregado correctamente'
+  };
+}
+
+// Eliminar ejercicio de una fase
+function removeExerciseFromPhase(phaseNumber, day, exerciseId) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEETS.PHASES);
+  
+  if (!sheet) {
+    return { error: 'No existe la hoja de Fases' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  let phaseRow = -1;
+  let currentRoutine = {};
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == phaseNumber) {
+      phaseRow = i + 1;
+      currentRoutine = JSON.parse(data[i][2] || '{}');
+      break;
+    }
+  }
+  
+  if (phaseRow === -1 || !currentRoutine[day]) {
+    return { error: 'Fase o día no encontrado' };
+  }
+  
+  // Filtrar el ejercicio
+  const originalLength = currentRoutine[day].length;
+  currentRoutine[day] = currentRoutine[day].filter(ex => ex.id != exerciseId);
+  
+  if (currentRoutine[day].length === originalLength) {
+    return { error: 'Ejercicio no encontrado: ' + exerciseId };
+  }
+  
+  // Actualizar la hoja
+  const timestamp = new Date().toISOString();
+  sheet.getRange(phaseRow, 3).setValue(JSON.stringify(currentRoutine));
+  sheet.getRange(phaseRow, 4).setValue(timestamp);
+  
+  return { 
+    success: true, 
+    phaseNumber, 
+    day, 
+    exerciseId,
+    message: 'Ejercicio eliminado correctamente'
+  };
+}
+
+// Actualizar ejercicio en una fase
+function updateExerciseInPhase(phaseNumber, day, exerciseId, updates) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEETS.PHASES);
+  
+  if (!sheet) {
+    return { error: 'No existe la hoja de Fases' };
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  let phaseRow = -1;
+  let currentRoutine = {};
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] == phaseNumber) {
+      phaseRow = i + 1;
+      currentRoutine = JSON.parse(data[i][2] || '{}');
+      break;
+    }
+  }
+  
+  if (phaseRow === -1 || !currentRoutine[day]) {
+    return { error: 'Fase o día no encontrado' };
+  }
+  
+  // Buscar y actualizar el ejercicio
+  let found = false;
+  currentRoutine[day] = currentRoutine[day].map(ex => {
+    if (ex.id == exerciseId) {
+      found = true;
+      return { ...ex, ...updates, id: ex.id }; // Mantener el ID original
+    }
+    return ex;
+  });
+  
+  if (!found) {
+    return { error: 'Ejercicio no encontrado: ' + exerciseId };
+  }
+  
+  // Actualizar la hoja
+  const timestamp = new Date().toISOString();
+  sheet.getRange(phaseRow, 3).setValue(JSON.stringify(currentRoutine));
+  sheet.getRange(phaseRow, 4).setValue(timestamp);
+  
+  return { 
+    success: true, 
+    phaseNumber, 
+    day, 
+    exerciseId,
+    updates,
+    message: 'Ejercicio actualizado correctamente'
+  };
+}
+
 // ==================== CONFIGURACIÓN ====================
 
 function getCurrentPhase() {
@@ -402,6 +569,107 @@ function response(data, statusCode = 200) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ==================== MIGRACIÓN ====================
+
+function migrateRoutineFromOldSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const oldSheet = ss.getSheetByName('RUTINA_ENTRENAMIENTO');
+  
+  if (!oldSheet) {
+    return { 
+      error: 'No se encontró la hoja RUTINA_ENTRENAMIENTO',
+      message: 'La hoja a migrar no existe'
+    };
+  }
+  
+  Logger.log('Iniciando migración de rutina...');
+  
+  // Leer toda la estructura de la hoja vieja
+  const data = oldSheet.getDataRange().getValues();
+  Logger.log('Total de filas en RUTINA_ENTRENAMIENTO: ' + data.length);
+  
+  // Estructura esperada: cada fila puede tener Fase, Día, y luego ejercicios
+  // Vamos a intentar detectar automáticamente la estructura
+  
+  const phases = {};
+  let currentPhase = null;
+  let currentDay = null;
+  
+  for (let i = 0; i < data.length; i++) {
+    const row = data[i];
+    
+    // Detectar si es un encabezado de fase
+    if (row[0] && String(row[0]).toLowerCase().includes('fase')) {
+      // Extraer número de fase
+      const match = String(row[0]).match(/(\d+)/);
+      if (match) {
+        currentPhase = parseInt(match[1]);
+        if (!phases[currentPhase]) {
+          phases[currentPhase] = {
+            name: row[0],
+            routine: {}
+          };
+        }
+        Logger.log('Detectada Fase: ' + currentPhase);
+      }
+      continue;
+    }
+    
+    // Detectar si es un día de la semana
+    const dias = ['lunes', 'martes', 'miércoles', 'miercoles', 'jueves', 'viernes', 'sábado', 'sabado', 'domingo'];
+    const cellValue = String(row[0]).toLowerCase();
+    const isDia = dias.some(dia => cellValue.includes(dia));
+    
+    if (isDia && currentPhase) {
+      // Normalizar nombre del día
+      currentDay = row[0].toString().trim();
+      currentDay = currentDay.charAt(0).toUpperCase() + currentDay.slice(1).toLowerCase();
+      
+      if (!phases[currentPhase].routine[currentDay]) {
+        phases[currentPhase].routine[currentDay] = [];
+      }
+      Logger.log('Detectado Día: ' + currentDay + ' en Fase ' + currentPhase);
+      continue;
+    }
+    
+    // Si tenemos fase y día, y hay datos en las columnas, es un ejercicio
+    if (currentPhase && currentDay && row[1]) {
+      const exercise = {
+        id: phases[currentPhase].routine[currentDay].length + 1,
+        ejercicio: row[1] || '',
+        series: row[2] || '',
+        reps: row[3] || '',
+        descanso: row[4] || '',
+        notas: row[5] || ''
+      };
+      
+      phases[currentPhase].routine[currentDay].push(exercise);
+      Logger.log('  Ejercicio agregado: ' + exercise.ejercicio);
+    }
+  }
+  
+  // Guardar todas las fases en la nueva estructura
+  let migratedCount = 0;
+  Object.keys(phases).forEach(phaseNumber => {
+    const phase = phases[phaseNumber];
+    savePhase({
+      phaseNumber: parseInt(phaseNumber),
+      name: phase.name,
+      routine: phase.routine
+    });
+    migratedCount++;
+    Logger.log('Fase ' + phaseNumber + ' guardada con ' + Object.keys(phase.routine).length + ' días');
+  });
+  
+  return {
+    success: true,
+    message: 'Migración completada',
+    phasesFound: Object.keys(phases).length,
+    phasesMigrated: migratedCount,
+    details: phases
+  };
 }
 
 // ==================== FUNCIONES DE TEST ====================
@@ -539,4 +807,88 @@ function testCompleto() {
   Logger.log('1. Revisar las hojas creadas en tu Google Sheet');
   Logger.log('2. Crear nueva implementación del script');
   Logger.log('3. Probar la URL desde el navegador');
+}
+
+// Test de gestión de ejercicios
+function testGestionEjercicios() {
+  Logger.log('========================================');
+  Logger.log('TEST DE GESTIÓN DE EJERCICIOS');
+  Logger.log('========================================\n');
+  
+  // TEST 1: Agregar ejercicio a fase existente
+  Logger.log('TEST 1: Agregar ejercicio');
+  Logger.log('---------------------------');
+  const addResult = addExerciseToPhase(1, 'Lunes', {
+    ejercicio: 'Sentadilla',
+    series: '4',
+    reps: '8-10',
+    descanso: '2 min',
+    notas: 'Peso progresivo'
+  });
+  Logger.log('Resultado: ' + JSON.stringify(addResult) + '\n');
+  
+  // TEST 2: Actualizar ejercicio
+  Logger.log('TEST 2: Actualizar ejercicio');
+  Logger.log('-----------------------------');
+  const updateResult = updateExerciseInPhase(1, 'Lunes', addResult.exercise.id, {
+    series: '5',
+    reps: '10-12',
+    notas: 'Aumentar peso'
+  });
+  Logger.log('Resultado: ' + JSON.stringify(updateResult) + '\n');
+  
+  // TEST 3: Leer fase actualizada
+  Logger.log('TEST 3: Verificar cambios');
+  Logger.log('-------------------------');
+  const phases = getPhases();
+  Logger.log('Fase 1: ' + JSON.stringify(phases[1]) + '\n');
+  
+  // TEST 4: Eliminar ejercicio
+  Logger.log('TEST 4: Eliminar ejercicio');
+  Logger.log('--------------------------');
+  const removeResult = removeExerciseFromPhase(1, 'Lunes', addResult.exercise.id);
+  Logger.log('Resultado: ' + JSON.stringify(removeResult) + '\n');
+  
+  // TEST 5: Verificar eliminación
+  Logger.log('TEST 5: Verificar eliminación');
+  Logger.log('------------------------------');
+  const phasesAfter = getPhases();
+  Logger.log('Fase 1 después de eliminar: ' + JSON.stringify(phasesAfter[1]) + '\n');
+  
+  Logger.log('========================================');
+  Logger.log('TEST DE GESTIÓN FINALIZADO ✓');
+  Logger.log('========================================');
+}
+
+// Test de migración
+function testMigracion() {
+  Logger.log('========================================');
+  Logger.log('TEST DE MIGRACIÓN DE RUTINA');
+  Logger.log('========================================\n');
+  
+  const result = migrateRoutineFromOldSheet();
+  
+  Logger.log('Resultado de migración:');
+  Logger.log(JSON.stringify(result, null, 2));
+  
+  if (result.success) {
+    Logger.log('\n✓ Migración exitosa');
+    Logger.log('Fases encontradas: ' + result.phasesFound);
+    Logger.log('Fases migradas: ' + result.phasesMigrated);
+    
+    Logger.log('\nVerificando fases migradas...');
+    const phases = getPhases();
+    Object.keys(phases).forEach(phaseNum => {
+      Logger.log('\nFase ' + phaseNum + ': ' + phases[phaseNum].name);
+      Object.keys(phases[phaseNum].routine).forEach(day => {
+        Logger.log('  ' + day + ': ' + phases[phaseNum].routine[day].length + ' ejercicios');
+      });
+    });
+  } else {
+    Logger.log('\n✗ Error en migración: ' + result.error);
+  }
+  
+  Logger.log('\n========================================');
+  Logger.log('TEST DE MIGRACIÓN FINALIZADO');
+  Logger.log('========================================');
 }
