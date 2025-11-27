@@ -405,8 +405,21 @@ function testSaveWorkout() {
 }
 
 function testGetWorkouts() {
+  // Primero verificar qué hay en la hoja
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEETS.WORKOUTS);
+  
+  if (!sheet) {
+    Logger.log('ERROR: Hoja Entrenamientos no existe');
+    return;
+  }
+  
+  const data = sheet.getDataRange().getValues();
+  Logger.log('Total filas en Entrenamientos: ' + data.length);
+  Logger.log('Datos raw: ' + JSON.stringify(data));
+  
   const result = getWorkouts('2025-11-20', '2025-11-27', 1);
-  Logger.log(result);
+  Logger.log('Resultado filtrado: ' + JSON.stringify(result));
 }
 
 function testSaveNutrition() {
