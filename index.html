@@ -1605,6 +1605,10 @@
             const workoutData = JSON.parse(localStorage.getItem(STORAGE_KEYS.workouts) || '{}');
             const last7Days = getLast7Days();
             
+            console.log('=== DEBUG PROGRESS STATS ===');
+            console.log('Últimos 7 días:', last7Days);
+            console.log('Datos de workouts:', workoutData);
+            
             let completedWorkouts = 0;
             let completedExercises = 0;
             let streak = 0;
@@ -1629,28 +1633,35 @@
                 }
             });
 
-            // Calculate streak - contar días consecutivos desde hoy hacia atrás
-            const today = new Date();
-            let currentStreakDate = new Date(today);
+            // Calculate streak - contar la racha más larga de días consecutivos en los últimos 7 días
+            let currentStreak = 0;
+            let maxStreak = 0;
             
-            while (true) {
-                const year = currentStreakDate.getFullYear();
-                const month = String(currentStreakDate.getMonth() + 1).padStart(2, '0');
-                const day = String(currentStreakDate.getDate()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}`;
-                const key = `${dateStr}_phase${currentPhase}`;
+            // Revisar desde el día más antiguo al más reciente
+            for (let i = 0; i < last7Days.length; i++) {
+                const date = last7Days[i];
+                const key = `${date}_phase${currentPhase}`;
                 
                 if (workoutData[key]) {
                     const exercises = Object.values(workoutData[key]);
                     if (exercises.some(ex => ex.completed)) {
-                        streak++;
-                        currentStreakDate.setDate(currentStreakDate.getDate() - 1);
-                        continue;
+                        currentStreak++;
+                        maxStreak = Math.max(maxStreak, currentStreak);
+                    } else {
+                        currentStreak = 0;
                     }
+                } else {
+                    currentStreak = 0;
                 }
-                break;
             }
+            
+            streak = maxStreak;
 
+            console.log('Entrenamientos completados:', completedWorkouts);
+            console.log('Ejercicios completados:', completedExercises);
+            console.log('Racha de días:', streak);
+            console.log('========================');
+            
             document.getElementById('completedWorkouts').textContent = completedWorkouts;
             document.getElementById('completedExercises').textContent = completedExercises;
             document.getElementById('weekStreak').textContent = streak;
@@ -2118,7 +2129,7 @@
             const last7Days = getLast7Days();
             
             const labels = last7Days.map(date => {
-                const d = new Date(date);
+                const d = new Date(date + 'T00:00:00');
                 return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
             });
             
@@ -2178,7 +2189,7 @@
             const last7Days = getLast7Days();
             
             const labels = last7Days.map(date => {
-                const d = new Date(date);
+                const d = new Date(date + 'T00:00:00');
                 return d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
             });
             
