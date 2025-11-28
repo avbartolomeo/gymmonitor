@@ -1504,7 +1504,7 @@
             });
         }
 
-        function loadExercises(day) {
+        async function loadExercises(day) {
             const container = document.getElementById('exercisesContainer');
             const currentRoutine = trainingPhases[currentPhase]?.routine || {};
             const exercises = currentRoutine[day] || [];
@@ -1526,7 +1526,32 @@
             const month = String(localNow.getMonth() + 1).padStart(2, '0');
             const day_num = String(localNow.getDate()).padStart(2, '0');
             const today = `${year}-${month}-${day_num}`;
-            const workoutData = getWorkoutData(today, currentPhase) || {};
+            
+            console.log('📅 Cargando ejercicios para:', today, 'Día:', day, 'Fase:', currentPhase);
+            
+            // Cargar datos SOLO del API (NO usar localStorage)
+            let workoutData = {};
+            try {
+                const result = await GymAPI.getWorkouts(today, today, currentPhase);
+                if (result && result.data) {
+                    result.data.forEach(w => {
+                        if (w.exerciseId) {
+                            workoutData[w.exerciseId] = {
+                                completed: w.completed === true || w.completed === 'true' || w.completed === 1,
+                                weight: w.weight,
+                                actualReps: w.actualReps,
+                                timestamp: w.timestamp
+                            };
+                        }
+                    });
+                    console.log('✅ Datos de ejercicios del API:', workoutData);
+                } else {
+                    console.log('ℹ️ No hay datos en el API para hoy');
+                }
+            } catch (error) {
+                console.error('❌ Error cargando datos del API:', error);
+                workoutData = {};
+            }
 
             container.innerHTML = exercises.map(ex => {
                 const exData = workoutData[ex.id] || {};
@@ -1572,7 +1597,7 @@
             }).join('');
         }
 
-        function toggleExercise(exerciseId, day) {
+        async function toggleExercise(exerciseId, day) {
             // Usar fecha en zona horaria local
             const now = new Date();
             const localNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
@@ -1587,32 +1612,45 @@
             const repsInput = card.querySelector('[data-field="reps"]');
 
             const isCompleted = workoutData[exerciseId]?.completed || false;
+            const newCompletedState = !isCompleted;
             
             workoutData[exerciseId] = {
-                completed: !isCompleted,
+                completed: newCompletedState,
                 weight: weightInput ? weightInput.value : null,
                 actualReps: repsInput ? repsInput.value : null,
                 timestamp: new Date().toISOString()
             };
 
-            // Guardar en API
-            GymAPI.saveWorkout(
-                today,
-                currentPhase,
+            console.log('💾 Guardando ejercicio:', {
+                date: today,
+                phase: currentPhase,
                 exerciseId,
-                !isCompleted,
-                weightInput ? weightInput.value : '',
-                repsInput ? repsInput.value : ''
-            ).catch(err => console.error('Error guardando workout:', err));
+                completed: newCompletedState,
+                weight: weightInput ? weightInput.value : '',
+                reps: repsInput ? repsInput.value : ''
+            });
 
-            saveWorkoutData(today, currentPhase, workoutData);
-            loadExercises(day);
-            updateProgressStats();
-            updateGoalsDisplay();
-            showToast(isCompleted ? 'Ejercicio desmarcado' : '¡Ejercicio completado! 💪');
-            
-            // Auto-sync en background
-            autoSync();
+            // Guardar SOLO en API - NO usar localStorage
+            try {
+                await GymAPI.saveWorkout(
+                    today,
+                    currentPhase,
+                    exerciseId,
+                    newCompletedState,
+                    weightInput ? weightInput.value : '',
+                    repsInput ? repsInput.value : ''
+                );
+                console.log('✅ Ejercicio guardado en API correctamente');
+                showToast(isCompleted ? 'Ejercicio desmarcado' : '¡Ejercicio completado! 💪');
+                
+                // Recargar desde API para mostrar cambios
+                await loadExercises(day);
+                await updateProgressStats();
+                await updateGoalsDisplay();
+            } catch (err) {
+                console.error('❌ Error guardando workout en API:', err);
+                showToast('❌ Error al guardar. Verifica tu conexión.');
+            }
         }
 
         function getWorkoutData(date, phase) {
@@ -1628,7 +1666,7 @@
             localStorage.setItem(STORAGE_KEYS.workouts, JSON.stringify(data));
         }
 
-        function saveNutrition() {
+        async function saveNutrition() {
             const calories = document.getElementById('caloriesInput').value;
             const protein = document.getElementById('proteinInput').value;
 
@@ -1644,45 +1682,55 @@
             const month = String(localNow.getMonth() + 1).padStart(2, '0');
             const day_num = String(localNow.getDate()).padStart(2, '0');
             const today = `${year}-${month}-${day_num}`;
-            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
-            
-            data[today] = {
-                calories: parseInt(calories),
-                protein: parseInt(protein),
-                timestamp: new Date().toISOString()
-            };
 
-            // Guardar en API
-            GymAPI.saveNutrition(
-                today,
-                parseInt(calories),
-                parseInt(protein)
-            ).catch(err => console.error('Error guardando nutrición:', err));
-
-            localStorage.setItem(STORAGE_KEYS.nutrition, JSON.stringify(data));
-            
-            document.getElementById('caloriesInput').value = '';
-            document.getElementById('proteinInput').value = '';
-            
-            updateNutritionStats();
-            updateGoalsDisplay();
-            createNutritionChart();
-            showToast('¡Registro guardado! 🎉');
-            
-            // Auto-sync en background
-            autoSync();
+            // Guardar SOLO en API
+            try {
+                await GymAPI.saveNutrition(
+                    today,
+                    parseInt(calories),
+                    parseInt(protein)
+                );
+                
+                console.log('✅ Nutrición guardada en API');
+                
+                document.getElementById('caloriesInput').value = '';
+                document.getElementById('proteinInput').value = '';
+                
+                await updateNutritionStats();
+                await updateGoalsDisplay();
+                createNutritionChart();
+                showToast('¡Registro guardado! 🎉');
+            } catch (err) {
+                console.error('❌ Error guardando nutrición:', err);
+                showToast('❌ Error al guardar. Verifica tu conexión.');
+            }
         }
 
         async function updateNutritionStats() {
-            const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.nutrition) || '{}');
             const last7Days = getLast7Days();
+            
+            // Cargar datos SOLO del API
+            let nutritionData = {};
+            try {
+                const result = await GymAPI.getNutrition(last7Days[0], last7Days[last7Days.length - 1]);
+                if (result && result.data) {
+                    result.data.forEach(n => {
+                        nutritionData[n.date] = {
+                            calories: n.calories,
+                            protein: n.protein
+                        };
+                    });
+                }
+            } catch (error) {
+                console.error('Error cargando nutrición del API:', error);
+            }
             
             let totalCal = 0, totalPro = 0, count = 0;
             
             last7Days.forEach(date => {
-                if (data[date]) {
-                    totalCal += data[date].calories;
-                    totalPro += data[date].protein;
+                if (nutritionData[date]) {
+                    totalCal += nutritionData[date].calories;
+                    totalPro += nutritionData[date].protein;
                     count++;
                 }
             });
@@ -1698,7 +1746,7 @@
                 // Crear copia del array antes de invertir
                 const reversedDays = [...last7Days].reverse();
                 historyContainer.innerHTML = reversedDays.map(date => {
-                    if (data[date]) {
+                    if (nutritionData[date]) {
                         const d = new Date(date + 'T00:00:00');
                         return `
                             <div class="history-item">
@@ -1706,7 +1754,7 @@
                                     <div class="history-date">${d.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' })}</div>
                                 </div>
                                 <div class="history-stats">
-                                    ${data[date].calories} kcal • ${data[date].protein}g proteína
+                                    ${nutritionData[date].calories} kcal • ${nutritionData[date].protein}g proteína
                                 </div>
                             </div>
                         `;
@@ -2573,10 +2621,10 @@
 
         // Day selector
         document.querySelectorAll('.day-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', async function() {
                 document.querySelectorAll('.day-btn').forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                loadExercises(this.dataset.day);
+                await loadExercises(this.dataset.day);
             });
         });
 
