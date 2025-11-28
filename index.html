@@ -1499,9 +1499,10 @@
                 const exData = workoutData[ex.id] || {};
                 const isCompleted = exData.completed || false;
                 const tipo = (ex.tipo || '').toUpperCase().trim();
-                const typeClass = tipo.toLowerCase();
+                const typeClass = tipo.toLowerCase().split(' ')[0];
+                const isFuerza = tipo.includes('FUERZA');
                 
-                console.log('Ejercicio:', ex.ejercicio, 'Tipo:', tipo, 'Es FUERZA?', tipo === 'FUERZA');
+                console.log('Ejercicio:', ex.ejercicio, 'Tipo:', tipo, 'Es FUERZA?', isFuerza);
 
                 return `
                     <div class="exercise-card ${isCompleted ? 'completed' : ''}" data-id="${ex.id}">
@@ -1521,7 +1522,7 @@
                             </div>
                             ${(ex.fc || ex.fcObjetivo) ? `<div class="detail-item"><span>❤️</span><span>${ex.fc || ex.fcObjetivo}</span></div>` : ''}
                         </div>
-                        ${tipo === 'FUERZA' ? `
+                        ${isFuerza ? `
                             <div class="input-group">
                                 <input type="number" placeholder="Peso (kg)" value="${exData.weight || ''}" data-field="weight">
                                 <input type="number" placeholder="Reps" value="${exData.actualReps || ''}" data-field="reps">
