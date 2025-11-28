@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Entrenamiento</title>
-    <script src="config.js"></script>
+    <script src="config.js?v=2.1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
         * {
             margin: 0;
@@ -1145,6 +1148,9 @@
             <div class="nav-label">Progreso</div>
         </div>
     </div>
+    
+    <!-- Indicador de versión (oculto) -->
+    <div style="display: none;" data-version="2.1" data-build="20251128"></div>
 
     <div class="modal" id="phaseModal">
         <div class="modal-content">
@@ -1257,6 +1263,10 @@
 
         // Initialize
         async function init() {
+            // Forzar recarga de datos del API al iniciar
+            console.log('🔄 Inicializando app - versión 2.1');
+            console.log('📅 Fecha/hora actual:', new Date().toISOString());
+            
             await loadPhases();
             await loadCurrentPhase();
             updateDate();
@@ -1265,29 +1275,51 @@
             await updateProgressStats();
             await updateGoalsDisplay();
             loadScriptUrl(); // Cargar configuración de sync
+            
+            // Auto-sync al iniciar para obtener datos más recientes
+            const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            if (scriptUrl) {
+                console.log('🔄 Auto-sincronizando datos al iniciar...');
+                await syncFromCloud();
+            }
         }
 
         async function loadPhases() {
             try {
+                console.log('📥 Cargando fases del API...');
                 const result = await GymAPI.getPhases();
-                console.log('Fases cargadas del API:', result);
+                console.log('📋 Respuesta del API:', result);
+                
                 if (result && result.data && Object.keys(result.data).length > 0) {
+                    console.log('✅ Fases obtenidas del API:', Object.keys(result.data).length, 'fases');
                     // Limpiar trainingPhases primero
                     Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
                     // Asignar nuevos datos
                     Object.assign(trainingPhases, result.data);
+                    // Guardar en localStorage como backup
+                    localStorage.setItem(STORAGE_KEYS.phases, JSON.stringify(result.data));
+                } else {
+                    console.log('⚠️ No hay fases en el API, usando localStorage');
+                    // Fallback a localStorage
+                    const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
+                    if (savedPhases) {
+                        const phases = JSON.parse(savedPhases);
+                        Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
+                        Object.assign(trainingPhases, phases);
+                    }
                 }
             } catch (error) {
-                console.error('Error cargando fases:', error);
+                console.error('❌ Error cargando fases del API:', error);
                 // Fallback a localStorage si falla el API
                 const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
                 if (savedPhases) {
+                    console.log('📂 Usando fases de localStorage como fallback');
                     const phases = JSON.parse(savedPhases);
                     Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
                     Object.assign(trainingPhases, phases);
                 }
             }
-            console.log('Training phases después de cargar:', trainingPhases);
+            console.log('📊 Training phases final:', trainingPhases);
             updatePhaseSelector();
         }
 
@@ -2232,6 +2264,45 @@
             }
         }
 
+        async function syncFromCloud() {
+            const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
+            if (!scriptUrl) return;
+
+            try {
+                console.log('☁️ Sincronizando desde la nube...');
+                
+                // Obtener datos frescos del API
+                const [phases, currentPhaseData, goals] = await Promise.all([
+                    GymAPI.getPhases().catch(() => ({ data: {} })),
+                    GymAPI.getCurrentPhase().catch(() => 1),
+                    GymAPI.getGoals().catch(() => ({}))
+                ]);
+                
+                console.log('✅ Datos recibidos de la nube');
+                
+                // Actualizar solo si hay datos nuevos
+                if (phases.data && Object.keys(phases.data).length > 0) {
+                    Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
+                    Object.assign(trainingPhases, phases.data);
+                    localStorage.setItem(STORAGE_KEYS.phases, JSON.stringify(phases.data));
+                }
+                
+                if (currentPhaseData) {
+                    currentPhase = currentPhaseData;
+                    localStorage.setItem(STORAGE_KEYS.currentPhase, currentPhase.toString());
+                }
+                
+                if (goals && Object.keys(goals).length > 0) {
+                    localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(goals));
+                }
+                
+                return true;
+            } catch (error) {
+                console.log('⚠️ Error en sync automático (normal si estás offline)');
+                return false;
+            }
+        }
+
         async function downloadFromCloud() {
             const scriptUrl = localStorage.getItem(STORAGE_KEYS.scriptUrl);
             
@@ -2474,6 +2545,11 @@
             
             if (tab === 'workout') {
                 document.getElementById('workoutSection').classList.add('active');
+                // Recargar datos al cambiar a entrenamiento
+                const activeDay = document.querySelector('.day-btn.active');
+                if (activeDay) {
+                    loadExercises(activeDay.dataset.day);
+                }
             } else if (tab === 'nutrition') {
                 document.getElementById('nutritionSection').classList.add('active');
                 await updateNutritionStats();
@@ -2481,6 +2557,8 @@
                 setTimeout(() => createNutritionChart(), 100);
             } else if (tab === 'progress') {
                 document.getElementById('progressSection').classList.add('active');
+                // Forzar recarga de estadísticas desde API
+                console.log('🔄 Recargando estadísticas...');
                 await updateProgressStats();
                 setTimeout(async () => await createWorkoutChart(), 100);
             }
