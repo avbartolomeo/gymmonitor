@@ -1498,12 +1498,15 @@
             container.innerHTML = exercises.map(ex => {
                 const exData = workoutData[ex.id] || {};
                 const isCompleted = exData.completed || false;
-                const typeClass = ex.tipo.toLowerCase();
+                const tipo = (ex.tipo || '').toUpperCase().trim();
+                const typeClass = tipo.toLowerCase();
+                
+                console.log('Ejercicio:', ex.ejercicio, 'Tipo:', tipo, 'Es FUERZA?', tipo === 'FUERZA');
 
                 return `
                     <div class="exercise-card ${isCompleted ? 'completed' : ''}" data-id="${ex.id}">
                         <div class="exercise-header">
-                            <span class="exercise-type type-${typeClass}">${ex.tipo}${ex.subtipo ? ' ' + ex.subtipo : ''}</span>
+                            <span class="exercise-type type-${typeClass}">${tipo}${ex.subtipo ? ' ' + ex.subtipo : ''}</span>
                             ${isCompleted ? '<span style="font-size: 24px;">✅</span>' : ''}
                         </div>
                         <div class="exercise-name">${ex.ejercicio || 'Ejercicio sin nombre'}</div>
@@ -1518,7 +1521,7 @@
                             </div>
                             ${(ex.fc || ex.fcObjetivo) ? `<div class="detail-item"><span>❤️</span><span>${ex.fc || ex.fcObjetivo}</span></div>` : ''}
                         </div>
-                        ${ex.tipo === 'FUERZA' ? `
+                        ${tipo === 'FUERZA' ? `
                             <div class="input-group">
                                 <input type="number" placeholder="Peso (kg)" value="${exData.weight || ''}" data-field="weight">
                                 <input type="number" placeholder="Reps" value="${exData.actualReps || ''}" data-field="reps">
