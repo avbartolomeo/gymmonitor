@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Stats API</title>
+    <script src="config.js"></script>
+</head>
+<body style="font-family: monospace; padding: 20px; background: #f5f5f5;">
+    <h1>Test de Estadísticas - Invocación API</h1>
+    <button onclick="testAPI()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #667eea; color: white; border: none; border-radius: 5px;">
+        🔍 Probar API
+    </button>
+    <div id="results" style="margin-top: 20px; white-space: pre-wrap; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);"></div>
+
+    <script>
+        function getLast7Days() {
+            const days = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                days.push(`${year}-${month}-${day}`);
+            }
+            return days;
+        }
+
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p style="color: #667eea;">⏳ Cargando datos...</p>';
+            
+            try {
+                const last7Days = getLast7Days();
+                const startDate = last7Days[0];
+                const endDate = last7Days[last7Days.length - 1];
+                const currentPhase = 1; // Fase por defecto
+                
+                console.log('=== TEST API STATS ===');
+                console.log('Fecha inicio:', startDate);
+                console.log('Fecha fin:', endDate);
+                console.log('Fase actual:', currentPhase);
+                console.log('URL del API:', GymAPI.baseUrl);
+                
+                // Invocar API
+                const result = await GymAPI.getWorkouts(startDate, endDate, currentPhase);
+                
+                console.log('Respuesta completa del API:', result);
+                console.log('Tipo de respuesta:', typeof result);
+                console.log('¿Tiene propiedad data?', 'data' in result);
+                console.log('¿Tiene propiedad error?', 'error' in result);
+                
+                const apiWorkouts = result.data || [];
+                console.log('Workouts obtenidos:', apiWorkouts);
+                
+                // Organizar por fecha
+                const workoutsByDate = {};
+                apiWorkouts.forEach(w => {
+                    if (!workoutsByDate[w.date]) {
+                        workoutsByDate[w.date] = [];
+                    }
+                    if (w.completed) {
+                        workoutsByDate[w.date].push(w);
+                    }
+                });
+                
+                // Calcular estadísticas
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day_num = String(now.getDate()).padStart(2, '0');
+                const today = `${year}-${month}-${day_num}`;
+                
+                let todayExercises = workoutsByDate[today] ? workoutsByDate[today].length : 0;
+                let weekExercises = 0;
+                let daysWithWorkouts = 0;
+                
+                last7Days.forEach(date => {
+                    if (workoutsByDate[date] && workoutsByDate[date].length > 0) {
+                        daysWithWorkouts++;
+                        weekExercises += workoutsByDate[date].length;
+                    }
+                });
+                
+                // Calculate streak
+                let streak = 0;
+                for (let i = last7Days.length - 1; i >= 0; i--) {
+                    const date = last7Days[i];
+                    if (workoutsByDate[date] && workoutsByDate[date].length > 0) {
+                        streak++;
+                    } else {
+                        break;
+                    }
+                }
+                
+                // Mostrar resultados
+                let output = '✅ DATOS OBTENIDOS DEL API\n\n';
+                output += '📅 Rango de fechas:\n';
+                output += `   Desde: ${startDate}\n`;
+                output += `   Hasta: ${endDate}\n`;
+                output += `   Hoy: ${today}\n\n`;
+                
+                output += '📊 ESTADÍSTICAS CALCULADAS:\n\n';
+                output += `🏋️ Entrenamientos (hoy): ${todayExercises}\n`;
+                output += `💪 Ejercicios (semana): ${weekExercises}\n`;
+                output += `🔥 Días consecutivos: ${streak}\n`;
+                output += `📈 Días con entrenamientos: ${daysWithWorkouts}\n\n`;
+                
+                output += '📋 DETALLE POR DÍA:\n\n';
+                last7Days.forEach(date => {
+                    const count = workoutsByDate[date] ? workoutsByDate[date].length : 0;
+                    const emoji = count > 0 ? '✅' : '⭕';
+                    output += `${emoji} ${date}: ${count} ejercicios\n`;
+                    if (workoutsByDate[date]) {
+                        workoutsByDate[date].forEach(w => {
+                            output += `     → Ejercicio ID: ${w.exerciseId}, Peso: ${w.weight || 'N/A'}, Reps: ${w.actualReps || 'N/A'}\n`;
+                        });
+                    }
+                });
+                
+                output += '\n\n🔍 DATOS CRUDOS DEL API:\n\n';
+                output += JSON.stringify(result, null, 2);
+                
+                resultsDiv.innerHTML = `<pre style="margin: 0;">${output}</pre>`;
+                
+            } catch (error) {
+                resultsDiv.innerHTML = `<pre style="color: red;">❌ ERROR:\n\n${error.toString()}\n\nStack:\n${error.stack}</pre>`;
+                console.error('Error en test:', error);
+            }
+        }
+    </script>
+</body>
+</html>
