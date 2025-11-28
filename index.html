@@ -1503,20 +1503,20 @@
                 return `
                     <div class="exercise-card ${isCompleted ? 'completed' : ''}" data-id="${ex.id}">
                         <div class="exercise-header">
-                            <span class="exercise-type type-${typeClass}">${ex.tipo} ${ex.subtipo}</span>
+                            <span class="exercise-type type-${typeClass}">${ex.tipo}${ex.subtipo ? ' ' + ex.subtipo : ''}</span>
                             ${isCompleted ? '<span style="font-size: 24px;">✅</span>' : ''}
                         </div>
-                        <div class="exercise-name">${ex.ejercicio}</div>
+                        <div class="exercise-name">${ex.ejercicio || 'Ejercicio sin nombre'}</div>
                         <div class="exercise-details">
                             <div class="detail-item">
                                 <span>📋</span>
-                                <span>${ex.series} series</span>
+                                <span>${ex.series || '-'} series</span>
                             </div>
                             <div class="detail-item">
                                 <span>🔄</span>
-                                <span>${ex.reps}</span>
+                                <span>${ex.reps || '-'}</span>
                             </div>
-                            ${ex.fc ? `<div class="detail-item"><span>❤️</span><span>${ex.fc}</span></div>` : ''}
+                            ${(ex.fc || ex.fcObjetivo) ? `<div class="detail-item"><span>❤️</span><span>${ex.fc || ex.fcObjetivo}</span></div>` : ''}
                         </div>
                         ${ex.tipo === 'FUERZA' ? `
                             <div class="input-group">
