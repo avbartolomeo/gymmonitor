@@ -1269,9 +1269,13 @@
 
         async function loadPhases() {
             try {
-                const phases = await GymAPI.getPhases();
-                if (phases && Object.keys(phases).length > 0) {
-                    Object.assign(trainingPhases, phases);
+                const result = await GymAPI.getPhases();
+                console.log('Fases cargadas del API:', result);
+                if (result && result.data && Object.keys(result.data).length > 0) {
+                    // Limpiar trainingPhases primero
+                    Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
+                    // Asignar nuevos datos
+                    Object.assign(trainingPhases, result.data);
                 }
             } catch (error) {
                 console.error('Error cargando fases:', error);
@@ -1279,9 +1283,11 @@
                 const savedPhases = localStorage.getItem(STORAGE_KEYS.phases);
                 if (savedPhases) {
                     const phases = JSON.parse(savedPhases);
+                    Object.keys(trainingPhases).forEach(key => delete trainingPhases[key]);
                     Object.assign(trainingPhases, phases);
                 }
             }
+            console.log('Training phases después de cargar:', trainingPhases);
             updatePhaseSelector();
         }
 
@@ -1328,7 +1334,11 @@
             const select = document.getElementById('phaseSelect');
             select.innerHTML = '';
             
-            Object.keys(trainingPhases).sort((a, b) => parseInt(a) - parseInt(b)).forEach(phaseNum => {
+            const phaseKeys = Object.keys(trainingPhases).filter(key => trainingPhases[key] && trainingPhases[key].name);
+            
+            console.log('Actualizando selector con fases:', phaseKeys);
+            
+            phaseKeys.sort((a, b) => parseInt(a) - parseInt(b)).forEach(phaseNum => {
                 const phase = trainingPhases[phaseNum];
                 const option = document.createElement('option');
                 option.value = phaseNum;
@@ -1336,7 +1346,9 @@
                 select.appendChild(option);
             });
             
-            select.value = currentPhase;
+            if (phaseKeys.length > 0) {
+                select.value = currentPhase;
+            }
         }
 
         function changePhase() {
@@ -1546,14 +1558,14 @@
             };
 
             // Guardar en API
-            GymAPI.saveWorkout({
-                date: today,
-                phase: currentPhase,
-                exerciseId: exerciseId,
-                completed: !isCompleted,
-                weight: weightInput ? weightInput.value : '',
-                actualReps: repsInput ? repsInput.value : ''
-            }).catch(err => console.error('Error guardando workout:', err));
+            GymAPI.saveWorkout(
+                today,
+                currentPhase,
+                exerciseId,
+                !isCompleted,
+                weightInput ? weightInput.value : '',
+                repsInput ? repsInput.value : ''
+            ).catch(err => console.error('Error guardando workout:', err));
 
             saveWorkoutData(today, currentPhase, workoutData);
             loadExercises(day);
@@ -1602,11 +1614,11 @@
             };
 
             // Guardar en API
-            GymAPI.saveNutrition({
-                date: today,
-                calories: parseInt(calories),
-                protein: parseInt(protein)
-            }).catch(err => console.error('Error guardando nutrición:', err));
+            GymAPI.saveNutrition(
+                today,
+                parseInt(calories),
+                parseInt(protein)
+            ).catch(err => console.error('Error guardando nutrición:', err));
 
             localStorage.setItem(STORAGE_KEYS.nutrition, JSON.stringify(data));
             
